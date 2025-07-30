@@ -50,6 +50,9 @@ jobs:
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         git commit --allow-empty -m "更新必应壁纸" -a
+
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
    
     - name: Push changes
       uses: ad-m/github-push-action@master
