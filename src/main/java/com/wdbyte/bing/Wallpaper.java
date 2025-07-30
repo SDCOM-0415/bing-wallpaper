@@ -85,6 +85,7 @@ public class Wallpaper {
             // 下载图片到本地目录
             ImageDownloader.downloadImages(imagesList);
             
+            // 生成网站
             new WebSiteGenerator().htmlGenerator();
         }
     }
