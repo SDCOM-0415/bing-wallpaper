@@ -12,6 +12,13 @@ on:
     - cron:  '2 16 * * *'
     # 每天UTC时间0点2分
     - cron:  '2 0 * * *'
+  # 添加手动触发功能
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: '触发原因'
+        required: false
+        default: '手动触发更新必应壁纸'
 
 jobs:
   build:
@@ -30,31 +37,21 @@ jobs:
       run: mvn -B package --file pom.xml
     - name: Run Java Application
       run: java -jar target/bing-wallpaper-jar-with-dependencies.jar
-
-    - name: upload files to OSS
-      uses: fangbinwei/aliyun-oss-website-action@v1
-      with:
-          accessKeyId: ${{ secrets.OSS_ACCESS_KEY_ID }}
-          accessKeySecret: ${{ secrets.OSS_ACCESS_KEY_SECRET }}
-          bucket: bing-hk
-          # use your own endpoint
-          endpoint: oss-cn-hongkong.aliyuncs.com
-          folder: docs
           
     - name: Commit files
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-         git config --local user.email "niumoo@126.com"
-         git config --local user.name "niumoo"
-         git pull
-         git add README.md
-         git add bing-wallpaper.md
-         git add picture/*
-         git add docs/*
-         git add zh-cn/*
-         git commit -m "update readme.md"
+        git add README.md
+        git add bing-wallpaper.md
+        git add picture/*
+        git add docs/*
+        git add zh-cn/*
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git commit --allow-empty -m "更新必应壁纸" -a
     - name: Push changes
-      uses:  ad-m/github-push-action@master
+      uses: ad-m/github-push-action@master
       with:
-         github_token: ${{ secrets.MY_GIT_TOKEN }}
-         branch: main
-    
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        branch: main
