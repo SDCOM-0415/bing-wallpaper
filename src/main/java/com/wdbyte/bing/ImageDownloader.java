@@ -4,11 +4,16 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 图片下载工具类
@@ -20,6 +25,9 @@ public class ImageDownloader {
 
     // 本地图片存储根目录
     private static final String LOCAL_IMG_DIR = "docs/local_img";
+    
+    // 存储图片URL映射关系
+    private static Map<String, String> imageUrlMap = new HashMap<>();
     
     /**
      * 下载并保存图片到本地
@@ -237,6 +245,208 @@ public class ImageDownloader {
         } catch (Exception e) {
             LogUtils.log("提取图片名称时出错: %s, 错误: %s", url, e.getMessage());
             return "bing_image_" + System.currentTimeMillis();
+        }
+    }
+    
+    /**
+     * 替换HTML文件中的图片链接为本地图片链接
+     * 
+     * @param htmlDir HTML文件目录
+     * @throws IOException 如果处理过程中出错
+     */
+    public static void replaceImageUrlsInHtml(Path htmlDir) throws IOException {
+        if (!Files.exists(htmlDir) || !Files.isDirectory(htmlDir)) {
+            LogUtils.log("HTML目录不存在或不是目录: %s", htmlDir);
+            return;
+        }
+        
+        LogUtils.log("开始替换HTML文件中的图片链接为本地图片链接: %s", htmlDir);
+        
+        // 递归处理所有HTML文件
+        Files.walk(htmlDir)
+            .filter(path -> path.toString().endsWith(".html"))
+            .forEach(htmlFile -> {
+                try {
+                    replaceImageUrlsInFile(htmlFile);
+                } catch (IOException e) {
+                    LogUtils.log("替换HTML文件中的图片链接时出错: %s, 错误: %s", htmlFile, e.getMessage());
+                }
+            });
+        
+        LogUtils.log("HTML文件中的图片链接替换完成");
+    }
+    
+    /**
+     * 替换单个HTML文件中的图片链接
+     * 
+     * @param htmlFile HTML文件路径
+     * @throws IOException 如果处理过程中出错
+     */
+    private static void replaceImageUrlsInFile(Path htmlFile) throws IOException {
+        LogUtils.log("处理HTML文件: %s", htmlFile);
+        
+        String content = new String(Files.readAllBytes(htmlFile), StandardCharsets.UTF_8);
+        boolean modified = false;
+        
+        // 替换背景图片URL
+        // 匹配 background-image: url("https://cn.bing.com/th?id=xxx") 格式的URL
+        Pattern bgPattern = Pattern.compile("background-image:\\s*url\\([\"']?(https://cn\\.bing\\.com/th\\?id=[^\"'\\)]+)[\"']?\\)");
+        Matcher bgMatcher = bgPattern.matcher(content);
+        StringBuffer sb = new StringBuffer();
+        
+        while (bgMatcher.find()) {
+            String originalUrl = bgMatcher.group(1);
+            String localUrl = getLocalImageUrl(originalUrl, htmlFile);
+            
+            if (localUrl != null) {
+                // 替换为本地URL
+                bgMatcher.appendReplacement(sb, "background-image: url(\"" + localUrl + "\")");
+                modified = true;
+                LogUtils.log("替换背景图片URL: %s -> %s", originalUrl, localUrl);
+            }
+        }
+        bgMatcher.appendTail(sb);
+        content = sb.toString();
+        
+        // 替换图片链接URL
+        // 匹配 href="https://cn.bing.com/th?id=xxx" 格式的URL
+        Pattern linkPattern = Pattern.compile("href=[\"'](https://cn\\.bing\\.com/th\\?id=[^\"']+)[\"']");
+        Matcher linkMatcher = linkPattern.matcher(content);
+        sb = new StringBuffer();
+        
+        while (linkMatcher.find()) {
+            String originalUrl = linkMatcher.group(1);
+            String localUrl = getLocalImageUrl(originalUrl, htmlFile);
+            
+            if (localUrl != null) {
+                // 替换为本地URL
+                linkMatcher.appendReplacement(sb, "href=\"" + localUrl + "\"");
+                modified = true;
+                LogUtils.log("替换图片链接URL: %s -> %s", originalUrl, localUrl);
+            }
+        }
+        linkMatcher.appendTail(sb);
+        content = sb.toString();
+        
+        // 替换img标签的src属性
+        Pattern imgPattern = Pattern.compile("src=[\"'](https://cn\\.bing\\.com/th\\?id=[^\"']+)[\"']");
+        Matcher imgMatcher = imgPattern.matcher(content);
+        sb = new StringBuffer();
+        
+        while (imgMatcher.find()) {
+            String originalUrl = imgMatcher.group(1);
+            String localUrl = getLocalImageUrl(originalUrl, htmlFile);
+            
+            if (localUrl != null) {
+                // 替换为本地URL
+                imgMatcher.appendReplacement(sb, "src=\"" + localUrl + "\"");
+                modified = true;
+                LogUtils.log("替换img标签URL: %s -> %s", originalUrl, localUrl);
+            }
+        }
+        imgMatcher.appendTail(sb);
+        content = sb.toString();
+        
+        // 如果有修改，写回文件
+        if (modified) {
+            Files.write(htmlFile, content.getBytes(StandardCharsets.UTF_8));
+            LogUtils.log("已更新HTML文件: %s", htmlFile);
+        } else {
+            LogUtils.log("HTML文件无需更新: %s", htmlFile);
+        }
+    }
+    
+    /**
+     * 获取本地图片URL
+     * 
+     * @param originalUrl 原始URL
+     * @param htmlFile HTML文件路径
+     * @return 本地图片URL，如果找不到对应的本地图片则返回null
+     */
+    private static String getLocalImageUrl(String originalUrl, Path htmlFile) {
+        // 如果已经有缓存的映射，直接返回
+        if (imageUrlMap.containsKey(originalUrl)) {
+            return imageUrlMap.get(originalUrl);
+        }
+        
+        try {
+            // 提取图片名称
+            String imgName = extractImageName(originalUrl);
+            if (imgName == null || imgName.isEmpty()) {
+                return null;
+            }
+            
+            // 确定分辨率
+            String resolution = "UHD";
+            if (originalUrl.contains("w=480") || originalUrl.contains("w=384")) {
+                resolution = "480";
+            } else if (originalUrl.contains("w=1920") || originalUrl.contains("w=1000")) {
+                resolution = "1920";
+            }
+            
+            // 从HTML文件路径中提取日期信息
+            String date = extractDateFromHtmlPath(htmlFile);
+            if (date == null) {
+                return null;
+            }
+            
+            // 构建本地图片路径
+            String yearMonth = date.substring(0, 7);
+            String localPath = "/local_img/" + yearMonth + "/" + imgName + "_" + resolution + ".jpg";
+            
+            // 检查本地图片是否存在
+            Path localImgPath = Paths.get("docs" + localPath);
+            if (!Files.exists(localImgPath)) {
+                LogUtils.log("本地图片不存在: %s", localImgPath);
+                return null;
+            }
+            
+            // 缓存映射关系
+            imageUrlMap.put(originalUrl, localPath);
+            
+            return localPath;
+        } catch (Exception e) {
+            LogUtils.log("获取本地图片URL时出错: %s, 错误: %s", originalUrl, e.getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * 从HTML文件路径中提取日期信息
+     * 
+     * @param htmlFile HTML文件路径
+     * @return 日期字符串（YYYY-MM-DD格式），如果无法提取则返回null
+     */
+    private static String extractDateFromHtmlPath(Path htmlFile) {
+        try {
+            String pathStr = htmlFile.toString();
+            
+            // 尝试从路径中提取日期
+            // 例如：docs/day/202507/31.html -> 2025-07-31
+            Pattern datePattern = Pattern.compile("day/(\\d{4})(\\d{2})/(\\d{2})\\.html$");
+            Matcher dateMatcher = datePattern.matcher(pathStr);
+            
+            if (dateMatcher.find()) {
+                String year = dateMatcher.group(1);
+                String month = dateMatcher.group(2);
+                String day = dateMatcher.group(3);
+                return year + "-" + month + "-" + day;
+            }
+            
+            // 如果是首页或其他页面，尝试读取文件内容提取日期
+            String content = new String(Files.readAllBytes(htmlFile), StandardCharsets.UTF_8);
+            Pattern contentDatePattern = Pattern.compile("<h1 class=\"w3-xlarge\">(\\d{4}-\\d{2}-\\d{2})</h1>");
+            Matcher contentDateMatcher = contentDatePattern.matcher(content);
+            
+            if (contentDateMatcher.find()) {
+                return contentDateMatcher.group(1);
+            }
+            
+            // 如果无法提取日期，使用当前日期
+            return java.time.LocalDate.now().toString();
+        } catch (Exception e) {
+            LogUtils.log("从HTML文件路径提取日期时出错: %s, 错误: %s", htmlFile, e.getMessage());
+            return null;
         }
     }
 }

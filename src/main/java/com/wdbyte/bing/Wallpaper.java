@@ -87,6 +87,9 @@ public class Wallpaper {
             
             // 生成网站
             new WebSiteGenerator().htmlGenerator();
+            
+            // 替换HTML文件中的图片链接为本地图片链接
+            ImageDownloader.replaceImageUrlsInHtml(HtmlFileUtils.BING_HTML_ROOT);
         }
     }
 
