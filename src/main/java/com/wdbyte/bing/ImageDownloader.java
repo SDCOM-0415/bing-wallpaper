@@ -98,12 +98,22 @@ public class ImageDownloader {
                 imgName = "bing_" + date.replace("-", "");
             }
             
-            // 下载不同分辨率的图片
-            downloadImageWithResolution(url, monthDir, imgName, "384x216", "&pid=hp&w=384&h=216&rs=1&c=4");
-            downloadImageWithResolution(url, monthDir, imgName, "1000", "&w=1000");
-            downloadImageWithResolution(url, monthDir, imgName, "4k", "");
+            LogUtils.log("处理图片: %s, 提取的名称: %s", url, imgName);
             
-            LogUtils.log("已下载图片 %s 的三种分辨率版本到 %s", imgName, monthDir);
+            // 根据URL类型选择不同的下载参数
+            if (url.contains("cn.bing.com/th") && url.contains("id=")) {
+                // 必应壁纸URL格式
+                downloadImageWithResolution(url, monthDir, imgName, "480", "&pid=hp&w=480");
+                downloadImageWithResolution(url, monthDir, imgName, "1920", "&pid=hp&w=1920");
+                downloadImageWithResolution(url, monthDir, imgName, "UHD", "");
+            } else {
+                // 其他URL格式
+                downloadImageWithResolution(url, monthDir, imgName, "384x216", "&pid=hp&w=384&h=216&rs=1&c=4");
+                downloadImageWithResolution(url, monthDir, imgName, "1000", "&w=1000");
+                downloadImageWithResolution(url, monthDir, imgName, "4k", "");
+            }
+            
+            LogUtils.log("已下载图片 %s 的多种分辨率版本到 %s", imgName, monthDir);
         } catch (Exception e) {
             LogUtils.log("处理图片时出错: %s, 错误: %s", url, e.getMessage());
             throw e;
@@ -125,8 +135,22 @@ public class ImageDownloader {
         try {
             // 构建完整的URL
             String fullUrl = baseUrl;
-            if (urlSuffix != null && !urlSuffix.isEmpty()) {
-                // 如果URL已经包含参数，则添加&开头的参数，否则添加?开头的参数
+            
+            // 处理必应壁纸URL的特殊情况
+            if (baseUrl.contains("cn.bing.com/th") && baseUrl.contains("id=")) {
+                // 如果是必应壁纸URL，保留id参数，替换或添加其他参数
+                int idStart = baseUrl.indexOf("id=");
+                int idEnd = baseUrl.indexOf("&", idStart);
+                
+                if (idEnd == -1) {
+                    // URL只有id参数
+                    fullUrl = baseUrl + urlSuffix;
+                } else {
+                    // URL有多个参数，保留id参数，替换其他参数
+                    fullUrl = baseUrl.substring(0, idEnd) + urlSuffix;
+                }
+            } else if (urlSuffix != null && !urlSuffix.isEmpty()) {
+                // 处理普通URL
                 if (baseUrl.contains("?")) {
                     fullUrl = baseUrl + urlSuffix;
                 } else {
@@ -166,7 +190,28 @@ public class ImageDownloader {
                 return null;
             }
             
-            // 移除URL参数
+            // 必应壁纸URL格式通常是：https://cn.bing.com/th?id=OHR.SaypeDubai_EN-US5078679271_UHD.jpg&pid=hp&w=1920
+            // 需要从id参数中提取图片名称
+            
+            if (url.contains("id=")) {
+                // 提取id参数值
+                int idStart = url.indexOf("id=") + 3;
+                int idEnd = url.indexOf("&", idStart);
+                if (idEnd == -1) {
+                    idEnd = url.length();
+                }
+                
+                String id = url.substring(idStart, idEnd);
+                
+                // 移除文件扩展名
+                if (id.contains(".")) {
+                    id = id.substring(0, id.lastIndexOf('.'));
+                }
+                
+                return id;
+            }
+            
+            // 如果URL不包含id参数，尝试从路径中提取文件名
             String baseUrl = url.contains("?") ? url.split("\\?")[0] : url;
             
             // 提取文件名
