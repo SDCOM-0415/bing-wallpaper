@@ -61,6 +61,10 @@ public class Wallpaper {
             BingFileUtils.writeBing(imagesList);
             BingFileUtils.writeReadme(imagesList);
             BingFileUtils.writeMonthInfo(imagesList);
+            
+            // 下载图片到本地目录
+            ImageDownloader.downloadImages(imagesList);
+            
             new WebSiteGenerator().htmlGenerator();
         }
     }

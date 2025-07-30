@@ -1,226 +1,232 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html>
 <head>
+    <title>必应壁纸下载 | Bing Wallpaper Download</title>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>下载必应壁纸客户端</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="必应壁纸下载，提供多种分辨率">
+    <meta name="keywords" content="bing wallpaper, 必应壁纸, 必应4k壁纸, 必应超清壁纸, 壁纸下载">
+    <link rel="stylesheet" href="/css/w3.css">
+    <link rel="icon" href="/img/fav.jpg">
     <style>
-        * {
+        body, html {
+            height: 100%;
             margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
-
-        body {
-            padding: 20px;
-        }
-
-        .header {
-            display: flex;
-            align-items: center;
-        }
-
-        .header a {
-            margin-right: 20px;
-            text-decoration: none;
-            color: #333;
-            font-size: 24px;
-        }
-
-        .header .right {
-            margin-left: auto;
-        }
-
-        .main {
-            max-width: 800px;
-            margin: 100px auto;
+        .header-container {
+            background-color: #4CAF50;
+            color: white;
+            padding: 64px;
             text-align: center;
         }
-
-        h1 {
-            font-size: 2.5em;
-            margin-bottom: 50px;
-        }
-
-        .os-options {
-            display: flex;
-            justify-content: center;
-            gap: 2em;
-            margin-bottom: 2em;
-        }
-
-        .os-option {
+        .download-container {
+            max-width: 1200px;
+            margin: 0 auto;
             padding: 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 10px;
         }
-
-        .os-option.active {
-            background-color: #f5f5f5;
+        .month-section {
+            margin-bottom: 30px;
         }
-
-        .os-icon {
-            width: 40px;
-            height: 40px;
-        }
-
-        .download-button {
-            background-color: #333;
-            color: white;
-            padding: 15px 2em;
-            border-radius: 8px;
-            border: none;
-            cursor: pointer;
-            font-size: 1em;
-            margin-bottom: 10px;
-        }
-
-        .system-req {
-            color: #666;
-            font-size: 0.9em;
-            margin-bottom: 50px;
-        }
-
-        .email-section {
-            margin-top: 50px;
-        }
-
-        .email-input {
+        .month-title {
+            background-color: #f1f1f1;
             padding: 10px;
-            width: 300px;
-            margin-bottom: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .image-card {
             border: 1px solid #ddd;
-            border-radius: 4px;
+            border-radius: 8px;
+            overflow: hidden;
+            transition: transform 0.3s;
         }
-
-        .update-button {
-            background-color: #eee;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
-            cursor: pointer;
-            width: 300px;
+        .image-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
         }
-
-        .footer {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            padding: 20px;
+        .image-card img {
+            width: 100%;
+            height: auto;
+        }
+        .image-info {
+            padding: 15px;
+        }
+        .download-links {
             display: flex;
             justify-content: space-between;
-            color: #666;
-            font-size: 0.9em;
+            margin-top: 10px;
         }
-
-        .footer a {
-            color: #666;
+        .download-btn {
+            background-color: #4CAF50;
+            color: white;
+            padding: 8px 12px;
             text-decoration: none;
-            margin-left: 20px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .download-btn:hover {
+            background-color: #45a049;
         }
     </style>
-    <script>
-        var _hmt = _hmt || [];
-        (function() {
-          var hm = document.createElement("script");
-          hm.src = "https://hm.baidu.com/hm.js?b59b4b29843942e412b704c39cc7363a";
-          var s = document.getElementsByTagName("script")[0]; 
-          s.parentNode.insertBefore(hm, s);
-        })();
-    </script>
 </head>
 <body>
-    <div class="header">
-        <a href="https://bing.wdbyte.com/zh-cn">必应壁纸</a>
-        <div class="right">
-            <a href="https://github.com/niumoo/bing-wallpaper-client">GitHub</a>
+<div class="header-container">
+    <h1>必应壁纸下载中心</h1>
+    <p>提供多种分辨率的必应每日壁纸下载</p>
+</div>
+
+<menu class="w3-display-container w3-content w3-center" style="max-width:100%; margin-top: 20px;">
+    <div class="w3-bar w3-light-grey w3-round w3-card w3-round-xlarge" style="display: inline-block;">
+        <a href="/" class="w3-bar-item w3-button w3-hover-green">首页</a>
+        <a href="#" class="w3-bar-item w3-button w3-green">下载中心</a>
+        <a href="/zh-cn/" class="w3-bar-item w3-button w3-hover-green">中国</a>
+        <a href="https://github.com/SDCOM-0415/bing-wallpaper" target="_blank" class="w3-bar-item w3-button w3-hover-green">GitHub</a>
+    </div>
+</menu>
+
+<div class="download-container">
+    <div class="w3-panel w3-pale-green w3-leftbar w3-border-green">
+        <p>本页面提供必应每日壁纸的本地下载，支持多种分辨率。图片按月份归档，点击相应的分辨率链接即可下载。</p>
+    </div>
+    
+    <div id="monthContainer">
+        <!-- 月份内容将通过JavaScript动态加载 -->
+        <div class="w3-panel w3-center">
+            <div class="w3-spin w3-xxlarge">⟳</div>
+            <p>正在加载图片数据...</p>
         </div>
     </div>
+</div>
 
-    <div class="main">
-        <h1>下载必应壁纸客户端</h1>
+<!-- Footer -->
+<footer class="w3-center w3-light-grey w3-padding-48 w3-large">
+    <p>本站所有图片均来源于必应搜索
+        <br/>
+        Powered by <a href="https://github.com/SDCOM-0415/bing-wallpaper" title="W3.CSS" target="_blank" class="w3-hover-text-green">Github.com/SDCOM-0415</a>
+        <br/>
+        本网站已经开源，采用 Apache License 2.0 许可协议，复制请注明来自 <a href="https://github.com/SDCOM-0415/bing-wallpaper">bing-wallpaper</a>！
+        <br/>
+        <a href="https://beian.miit.gov.cn/" target="_blank" class="w3-hover-text-green">备案号：赣ICP备2023009313号-3</a>
+    </p>
+</footer>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 获取当前年月
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    
+    // 生成最近6个月的月份列表
+    const months = [];
+    for (let i = 0; i < 6; i++) {
+        let year = currentYear;
+        let month = currentMonth - i;
         
-        <div class="os-options">
-            <div class="os-option active" data-download-url="https://file.debug.group/bing/Bing.Wallpaper_0.1.0_x64-setup.exe">
-                <svg style="width: 2em;height: 2em;" fill="currentColor" stroke-width="0" viewBox="0 0 448 512" class="b h-8 w-8 p-1" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M0 93.7l183.6-25.3v177.4H0V93.7zm0 324.6l183.6 25.3V268.4H0v149.9zm203.8 28L448 480V268.4H203.8v177.9zm0-380.6v180.1H448V32L203.8 65.7z"></path>
-                  </svg>
-                <span>Windows</span>
-            </div>
-            <div class="os-option" data-download-url="https://file.debug.group/bing/Bing.Wallpaper_0.1.0_x64.dmg">
-                <svg style="width: 2em;height: 2em;" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024" class="h-8 w-8 p-1" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M747.4 535.7c-.4-68.2 30.5-119.6 92.9-157.5-34.9-50-87.7-77.5-157.3-82.8-65.9-5.2-138 38.4-164.4 38.4-27.9 0-91.7-36.6-141.9-36.6C273.1 298.8 163 379.8 163 544.6c0 48.7 8.9 99 26.7 150.8 23.8 68.2 109.6 235.3 199.1 232.6 46.8-1.1 79.9-33.2 140.8-33.2 59.1 0 89.7 33.2 141.9 33.2 90.3-1.3 167.9-153.2 190.5-221.6-121.1-57.1-114.6-167.2-114.6-170.7zm-105.1-305c50.7-60.2 46.1-115 44.6-134.7-44.8 2.6-96.6 30.5-126.1 64.8-32.5 36.8-51.6 82.3-47.5 133.6 48.4 3.7 92.6-21.2 129-63.7z"></path>
-                  </svg>
-                <span>MacOS</span>
-            </div>
-            <div class="os-option" data-download-url="https://file.debug.group/bing/Bing.Wallpaper_0.1.0_amd64.deb">
-                <svg style="width: 2em;height: 2em;" stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 448 512" class="h-8 w-8 p-0.5" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M220.8 123.3c1 .5 1.8 1.7 3 1.7 1.1 0 2.8-.4 2.9-1.5.2-1.4-1.9-2.3-3.2-2.9-1.7-.7-3.9-1-5.5-.1-.4.2-.8.7-.6 1.1.3 1.3 2.3 1.1 3.4 1.7zm-21.9 1.7c1.2 0 2-1.2 3-1.7 1.1-.6 3.1-.4 3.5-1.6.2-.4-.2-.9-.6-1.1-1.6-.9-3.8-.6-5.5.1-1.3.6-3.4 1.5-3.2 2.9.1 1 1.8 1.5 2.8 1.4zM420 403.8c-3.6-4-5.3-11.6-7.2-19.7-1.8-8.1-3.9-16.8-10.5-22.4-1.3-1.1-2.6-2.1-4-2.9-1.3-.8-2.7-1.5-4.1-2 9.2-27.3 5.6-54.5-3.7-79.1-11.4-30.1-31.3-56.4-46.5-74.4-17.1-21.5-33.7-41.9-33.4-72C311.1 85.4 315.7.1 234.8 0 132.4-.2 158 103.4 156.9 135.2c-1.7 23.4-6.4 41.8-22.5 64.7-18.9 22.5-45.5 58.8-58.1 96.7-6 17.9-8.8 36.1-6.2 53.3-6.5 5.8-11.4 14.7-16.6 20.2-4.2 4.3-10.3 5.9-17 8.3s-14 6-18.5 14.5c-2.1 3.9-2.8 8.1-2.8 12.4 0 3.9.6 7.9 1.2 11.8 1.2 8.1 2.5 15.7.8 20.8-5.2 14.4-5.9 24.4-2.2 31.7 3.8 7.3 11.4 10.5 20.1 12.3 17.3 3.6 40.8 2.7 59.3 12.5 19.8 10.4 39.9 14.1 55.9 10.4 11.6-2.6 21.1-9.6 25.9-20.2 12.5-.1 26.3-5.4 48.3-6.6 14.9-1.2 33.6 5.3 55.1 4.1.6 2.3 1.4 4.6 2.5 6.7v.1c8.3 16.7 23.8 24.3 40.3 23 16.6-1.3 34.1-11 48.3-27.9 13.6-16.4 36-23.2 50.9-32.2 7.4-4.5 13.4-10.1 13.9-18.3.4-8.2-4.4-17.3-15.5-29.7zM223.7 87.3c9.8-22.2 34.2-21.8 44-.4 6.5 14.2 3.6 30.9-4.3 40.4-1.6-.8-5.9-2.6-12.6-4.9 1.1-1.2 3.1-2.7 3.9-4.6 4.8-11.8-.2-27-9.1-27.3-7.3-.5-13.9 10.8-11.8 23-4.1-2-9.4-3.5-13-4.4-1-6.9-.3-14.6 2.9-21.8zM183 75.8c10.1 0 20.8 14.2 19.1 33.5-3.5 1-7.1 2.5-10.2 4.6 1.2-8.9-3.3-20.1-9.6-19.6-8.4.7-9.8 21.2-1.8 28.1 1 .8 1.9-.2-5.9 5.5-15.6-14.6-10.5-52.1 8.4-52.1zm-13.6 60.7c6.2-4.6 13.6-10 14.1-10.5 4.7-4.4 13.5-14.2 27.9-14.2 7.1 0 15.6 2.3 25.9 8.9 6.3 4.1 11.3 4.4 22.6 9.3 8.4 3.5 13.7 9.7 10.5 18.2-2.6 7.1-11 14.4-22.7 18.1-11.1 3.6-19.8 16-38.2 14.9-3.9-.2-7-1-9.6-2.1-8-3.5-12.2-10.4-20-15-8.6-4.8-13.2-10.4-14.7-15.3-1.4-4.9 0-9 4.2-12.3zm3.3 334c-2.7 35.1-43.9 34.4-75.3 18-29.9-15.8-68.6-6.5-76.5-21.9-2.4-4.7-2.4-12.7 2.6-26.4v-.2c2.4-7.6.6-16-.6-23.9-1.2-7.8-1.8-15 .9-20 3.5-6.7 8.5-9.1 14.8-11.3 10.3-3.7 11.8-3.4 19.6-9.9 5.5-5.7 9.5-12.9 14.3-18 5.1-5.5 10-8.1 17.7-6.9 8.1 1.2 15.1 6.8 21.9 16l19.6 35.6c9.5 19.9 43.1 48.4 41 68.9zm-1.4-25.9c-4.1-6.6-9.6-13.6-14.4-19.6 7.1 0 14.2-2.2 16.7-8.9 2.3-6.2 0-14.9-7.4-24.9-13.5-18.2-38.3-32.5-38.3-32.5-13.5-8.4-21.1-18.7-24.6-29.9s-3-23.3-.3-35.2c5.2-22.9 18.6-45.2 27.2-59.2 2.3-1.7.8 3.2-8.7 20.8-8.5 16.1-24.4 53.3-2.6 82.4.6-20.7 5.5-41.8 13.8-61.5 12-27.4 37.3-74.9 39.3-112.7 1.1.8 4.6 3.2 6.2 4.1 4.6 2.7 8.1 6.7 12.6 10.3 12.4 10 28.5 9.2 42.4 1.2 6.2-3.5 11.2-7.5 15.9-9 9.9-3.1 17.8-8.6 22.3-15 7.7 30.4 25.7 74.3 37.2 95.7 6.1 11.4 18.3 35.5 23.6 64.6 3.3-.1 7 .4 10.9 1.4 13.8-35.7-11.7-74.2-23.3-84.9-4.7-4.6-4.9-6.6-2.6-6.5 12.6 11.2 29.2 33.7 35.2 59 2.8 11.6 3.3 23.7.4 35.7 16.4 6.8 35.9 17.9 30.7 34.8-2.2-.1-3.2 0-4.2 0 3.2-10.1-3.9-17.6-22.8-26.1-19.6-8.6-36-8.6-38.3 12.5-12.1 4.2-18.3 14.7-21.4 27.3-2.8 11.2-3.6 24.7-4.4 39.9-.5 7.7-3.6 18-6.8 29-32.1 22.9-76.7 32.9-114.3 7.2zm257.4-11.5c-.9 16.8-41.2 19.9-63.2 46.5-13.2 15.7-29.4 24.4-43.6 25.5s-26.5-4.8-33.7-19.3c-4.7-11.1-2.4-23.1 1.1-36.3 3.7-14.2 9.2-28.8 9.9-40.6.8-15.2 1.7-28.5 4.2-38.7 2.6-10.3 6.6-17.2 13.7-21.1.3-.2.7-.3 1-.5.8 13.2 7.3 26.6 18.8 29.5 12.6 3.3 30.7-7.5 38.4-16.3 9-.3 15.7-.9 22.6 5.1 9.9 8.5 7.1 30.3 17.1 41.6 10.6 11.6 14 19.5 13.7 24.6zM173.3 148.7c2 1.9 4.7 4.5 8 7.1 6.6 5.2 15.8 10.6 27.3 10.6 11.6 0 22.5-5.9 31.8-10.8 4.9-2.6 10.9-7 14.8-10.4s5.9-6.3 3.1-6.6-2.6 2.6-6 5.1c-4.4 3.2-9.7 7.4-13.9 9.8-7.4 4.2-19.5 10.2-29.9 10.2s-18.7-4.8-24.9-9.7c-3.1-2.5-5.7-5-7.7-6.9-1.5-1.4-1.9-4.6-4.3-4.9-1.4-.1-1.8 3.7 1.7 6.5z"></path>
-                  </svg>
-                <span>Linux</span>
-            </div>
-        </div>
+        if (month <= 0) {
+            month += 12;
+            year -= 1;
+        }
+        
+        months.push(`${year}-${month.toString().padStart(2, '0')}`);
+    }
+    
+    const monthContainer = document.getElementById('monthContainer');
+    monthContainer.innerHTML = ''; // 清空加载提示
+    
+    // 为每个月份创建一个部分
+    months.forEach(month => {
+        const monthSection = document.createElement('div');
+        monthSection.className = 'month-section';
+        
+        const monthTitle = document.createElement('div');
+        monthTitle.className = 'month-title';
+        monthTitle.innerHTML = `<h2>${month} 壁纸</h2>`;
+        
+        const imageGrid = document.createElement('div');
+        imageGrid.className = 'image-grid';
+        imageGrid.id = `grid-${month}`;
+        imageGrid.innerHTML = '<p>正在加载该月份的图片...</p>';
+        
+        monthSection.appendChild(monthTitle);
+        monthSection.appendChild(imageGrid);
+        monthContainer.appendChild(monthSection);
+        
+        // 尝试加载该月份的图片
+        fetchMonthImages(month, `grid-${month}`);
+    });
+});
 
-        <button class="download-button">下载 Windows 版本</button>
-        <div class="system-req">支持 Windows 10/11 系统</div>
-
-        <div class="email-section">
-            <img src="https://cdn.debug.group/git/webinfo/wp.png" width="200px">
-            <p>关注公众号及时获取最新版本客户端通知<br/>也可反馈问题或建议</p>
-        </div>
-    </div>
-
-    <div class="footer">
-        <div>© 2025 必应壁纸</div>
-        <div>
-            <a href="https://www.wdbyte.com/">博客</a>
-            <!-- <a href="#">使用文档</a>
-            <a href="#">官方网站</a>
-            <a href="#">社区</a>
-            <a href="#">微博</a>
-            <a href="#">微信公众号</a>
-            <a href="#">下载</a> -->
-        </div>
-    </div>
-
-    <script>
-        // 操作系统选择逻辑
-        const osOptions = document.querySelectorAll('.os-option');
-        const downloadButton = document.querySelector('.download-button');
-        const systemReq = document.querySelector('.system-req');
-
-        osOptions.forEach(option => {
-            option.addEventListener('click', () => {
-                osOptions.forEach(opt => opt.classList.remove('active'));
-                option.classList.add('active');
-                
-                const os = option.querySelector('span').textContent;
-                downloadButton.textContent = `下载 ${os} 版本`;
-                downloadButton.setAttribute('data-download-url', option.getAttribute('data-download-url'));
-
-                if (os === 'Windows') {
-                    systemReq.textContent = '支持 Windows 10/11 系统';
-                } else if (os === 'MacOS') {
-                    systemReq.textContent = '支持 MacOS 10.15 及以上版本';
-                } else {
-                    systemReq.textContent = '支持 Ubuntu 操作系统';
-                }
-            });
-        });
-
-        // 点击下载按钮后进行下载
-        downloadButton.addEventListener('click', () => {
-            const url = downloadButton.getAttribute('data-download-url');
-            if (url) {
-                window.location.href = url; // 跳转到下载链接
+// 获取图片列表
+function fetchMonthImages(month, gridId) {
+    // 使用fetch API检查目录是否存在
+    fetch(`/local_img/${month}/`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('目录不存在');
             }
+            return fetch('/images.json'); // 获取图片信息JSON
+        })
+        .then(response => response.json())
+        .then(data => {
+            // 过滤出当前月份的图片
+            const monthImages = data.filter(img => {
+                return img.date && img.date.startsWith(month);
+            });
+            
+            displayImages(month, gridId, monthImages);
+        })
+        .catch(error => {
+            console.error('获取图片失败:', error);
+            document.getElementById(gridId).innerHTML = '<p>该月份暂无图片或加载失败</p>';
         });
-    </script>
+}
+
+// 显示图片
+function displayImages(month, gridId, images) {
+    const grid = document.getElementById(gridId);
+    
+    if (images && images.length > 0) {
+        grid.innerHTML = ''; // 清空加载提示
+        
+        images.forEach(image => {
+            // 从URL中提取图片名称
+            const urlParts = image.url.split('/');
+            const imgName = urlParts[urlParts.length - 1].split('?')[0];
+            const date = image.date;
+            
+            // 创建图片卡片
+            const card = document.createElement('div');
+            card.className = 'image-card';
+            
+            // 构建本地图片路径
+            const smallImgPath = `/local_img/${month}/${imgName}_384x216.jpg`;
+            const mediumImgPath = `/local_img/${month}/${imgName}_1000.jpg`;
+            const largeImgPath = `/local_img/${month}/${imgName}_4k.jpg`;
+            
+            card.innerHTML = `
+                <img src="${smallImgPath}" alt="必应壁纸 ${date}" onerror="this.src='/img/fav.jpg';">
+                <div class="image-info">
+                    <div>${date}</div>
+                    <div class="download-links">
+                        <a href="${smallImgPath}" class="download-btn" download>小图</a>
+                        <a href="${mediumImgPath}" class="download-btn" download>中图</a>
+                        <a href="${largeImgPath}" class="download-btn" download>4K</a>
+                    </div>
+                </div>
+            `;
+            
+            grid.appendChild(card);
+        });
+    } else {
+        grid.innerHTML = '<p>该月份暂无图片</p>';
+    }
+}
+</script>
+
 </body>
 </html>
