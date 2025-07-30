@@ -40,10 +40,30 @@ public class Wallpaper {
             String bingApi = String.format(BING_API_TEMPLATE, region);
             changeConfig(region);
             String httpContent = HttpUtls.getHttpContent(bingApi);
+            if (httpContent == null || httpContent.isEmpty()) {
+                LogUtils.log("从必应API获取数据失败，URL: %s", bingApi);
+                continue;
+            }
+            
             JSONObject jsonObject = JSON.parseObject(httpContent);
+            if (jsonObject == null) {
+                LogUtils.log("解析JSON数据失败，内容: %s", httpContent);
+                continue;
+            }
+            
             JSONArray jsonArray = jsonObject.getJSONArray("images");
+            if (jsonArray == null || jsonArray.isEmpty()) {
+                LogUtils.log("JSON中没有找到images数组或数组为空");
+                continue;
+            }
 
-            jsonObject = (JSONObject)jsonArray.get(0);
+            Object firstImage = jsonArray.get(0);
+            if (firstImage == null) {
+                LogUtils.log("images数组的第一个元素为null");
+                continue;
+            }
+            
+            jsonObject = (JSONObject)firstImage;
             // 图片地址
             String url = BING_URL + (String)jsonObject.get("url");
 

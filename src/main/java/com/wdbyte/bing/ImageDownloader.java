@@ -28,6 +28,11 @@ public class ImageDownloader {
      * @throws IOException 如果下载或保存过程中出错
      */
     public static void downloadImages(List<Images> imagesList) throws IOException {
+        if (imagesList == null || imagesList.isEmpty()) {
+            LogUtils.log("图片列表为空，无法下载图片");
+            return;
+        }
+        
         // 创建本地图片目录
         Path localImgPath = Paths.get(LOCAL_IMG_DIR);
         if (!Files.exists(localImgPath)) {
@@ -42,7 +47,10 @@ public class ImageDownloader {
         
         for (Images image : imagesList) {
             if (count >= maxImages) break;
-            if (image.getUrl() == null) continue;
+            if (image == null || image.getUrl() == null || image.getDate() == null) {
+                LogUtils.log("跳过无效的图片数据");
+                continue;
+            }
             
             try {
                 downloadImage(image);
@@ -65,22 +73,41 @@ public class ImageDownloader {
         String url = image.getUrl();
         String date = image.getDate();
         
-        // 提取年月作为目录名
-        String yearMonth = date.substring(0, 7);
-        Path monthDir = Paths.get(LOCAL_IMG_DIR, yearMonth);
-        if (!Files.exists(monthDir)) {
-            Files.createDirectories(monthDir);
+        if (url == null || url.isEmpty()) {
+            LogUtils.log("图片URL为空，无法下载");
+            return;
         }
         
-        // 提取图片名称
-        String imgName = extractImageName(url);
+        if (date == null || date.isEmpty() || date.length() < 7) {
+            LogUtils.log("图片日期格式无效: %s，使用当前日期", date);
+            date = java.time.LocalDate.now().toString();
+        }
         
-        // 下载不同分辨率的图片
-        downloadImageWithResolution(url, monthDir, imgName, "384x216", "&pid=hp&w=384&h=216&rs=1&c=4");
-        downloadImageWithResolution(url, monthDir, imgName, "1000", "&w=1000");
-        downloadImageWithResolution(url, monthDir, imgName, "4k", "");
-        
-        LogUtils.log("已下载图片 %s 的三种分辨率版本到 %s", imgName, monthDir);
+        try {
+            // 提取年月作为目录名
+            String yearMonth = date.substring(0, 7);
+            Path monthDir = Paths.get(LOCAL_IMG_DIR, yearMonth);
+            if (!Files.exists(monthDir)) {
+                Files.createDirectories(monthDir);
+            }
+            
+            // 提取图片名称
+            String imgName = extractImageName(url);
+            if (imgName == null || imgName.isEmpty()) {
+                LogUtils.log("无法从URL提取图片名称: %s", url);
+                imgName = "bing_" + date.replace("-", "");
+            }
+            
+            // 下载不同分辨率的图片
+            downloadImageWithResolution(url, monthDir, imgName, "384x216", "&pid=hp&w=384&h=216&rs=1&c=4");
+            downloadImageWithResolution(url, monthDir, imgName, "1000", "&w=1000");
+            downloadImageWithResolution(url, monthDir, imgName, "4k", "");
+            
+            LogUtils.log("已下载图片 %s 的三种分辨率版本到 %s", imgName, monthDir);
+        } catch (Exception e) {
+            LogUtils.log("处理图片时出错: %s, 错误: %s", url, e.getMessage());
+            throw e;
+        }
     }
     
     /**
@@ -95,24 +122,35 @@ public class ImageDownloader {
      */
     private static void downloadImageWithResolution(String baseUrl, Path targetDir, String imgName, 
                                                   String resolution, String urlSuffix) throws IOException {
-        // 构建完整的URL
-        String fullUrl = baseUrl;
-        if (!urlSuffix.isEmpty()) {
-            // 如果URL已经包含参数，则添加&开头的参数，否则添加?开头的参数
-            if (baseUrl.contains("?")) {
-                fullUrl = baseUrl + urlSuffix;
-            } else {
-                fullUrl = baseUrl + "?" + urlSuffix.substring(1);
+        try {
+            // 构建完整的URL
+            String fullUrl = baseUrl;
+            if (urlSuffix != null && !urlSuffix.isEmpty()) {
+                // 如果URL已经包含参数，则添加&开头的参数，否则添加?开头的参数
+                if (baseUrl.contains("?")) {
+                    fullUrl = baseUrl + urlSuffix;
+                } else {
+                    fullUrl = baseUrl + "?" + urlSuffix.substring(1);
+                }
             }
-        }
-        
-        // 构建目标文件路径
-        String fileName = imgName + "_" + resolution + ".jpg";
-        Path targetFile = targetDir.resolve(fileName);
-        
-        // 下载图片
-        try (InputStream in = new URL(fullUrl).openStream()) {
-            Files.copy(in, targetFile, StandardCopyOption.REPLACE_EXISTING);
+            
+            // 构建目标文件路径
+            String fileName = imgName + "_" + resolution + ".jpg";
+            Path targetFile = targetDir.resolve(fileName);
+            
+            // 下载图片
+            LogUtils.log("正在下载图片: %s 到 %s", fullUrl, targetFile);
+            
+            try (InputStream in = new URL(fullUrl).openStream()) {
+                Files.copy(in, targetFile, StandardCopyOption.REPLACE_EXISTING);
+                LogUtils.log("图片下载成功: %s", fileName);
+            } catch (Exception e) {
+                LogUtils.log("下载图片失败: %s, 错误: %s", fullUrl, e.getMessage());
+                throw e;
+            }
+        } catch (Exception e) {
+            LogUtils.log("处理图片URL时出错: %s, 分辨率: %s, 错误: %s", baseUrl, resolution, e.getMessage());
+            throw new IOException("下载图片失败", e);
         }
     }
     
@@ -123,17 +161,37 @@ public class ImageDownloader {
      * @return 图片名称
      */
     private static String extractImageName(String url) {
-        // 移除URL参数
-        String baseUrl = url.split("\\?")[0];
-        
-        // 提取文件名
-        String fileName = baseUrl.substring(baseUrl.lastIndexOf('/') + 1);
-        
-        // 移除文件扩展名
-        if (fileName.contains(".")) {
-            fileName = fileName.substring(0, fileName.lastIndexOf('.'));
+        try {
+            if (url == null || url.isEmpty()) {
+                return null;
+            }
+            
+            // 移除URL参数
+            String baseUrl = url.contains("?") ? url.split("\\?")[0] : url;
+            
+            // 提取文件名
+            int lastSlashIndex = baseUrl.lastIndexOf('/');
+            if (lastSlashIndex == -1 || lastSlashIndex == baseUrl.length() - 1) {
+                // URL格式不正确，无法提取文件名
+                return "bing_image_" + System.currentTimeMillis();
+            }
+            
+            String fileName = baseUrl.substring(lastSlashIndex + 1);
+            
+            // 移除文件扩展名
+            if (fileName.contains(".")) {
+                fileName = fileName.substring(0, fileName.lastIndexOf('.'));
+            }
+            
+            // 如果文件名为空，使用默认名称
+            if (fileName.isEmpty()) {
+                fileName = "bing_image_" + System.currentTimeMillis();
+            }
+            
+            return fileName;
+        } catch (Exception e) {
+            LogUtils.log("提取图片名称时出错: %s, 错误: %s", url, e.getMessage());
+            return "bing_image_" + System.currentTimeMillis();
         }
-        
-        return fileName;
     }
 }
