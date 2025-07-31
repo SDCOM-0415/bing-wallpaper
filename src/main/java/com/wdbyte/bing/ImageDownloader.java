@@ -280,18 +280,13 @@ public class ImageDownloader {
     }
     
     /**
-     * 生成归档页面，使用本地图片
+     * 生成归档页面，完全使用首页内容，只替换图片链接为本地文件
      * 
      * @param imagesList 图片列表
      * @param archiveFile 归档页面文件路径
      * @throws IOException 如果处理过程中出错
      */
     public static void generateArchivePage(List<Images> imagesList, Path archiveFile) throws IOException {
-        if (imagesList == null || imagesList.isEmpty()) {
-            LogUtils.log("图片列表为空，无法生成归档页面");
-            return;
-        }
-        
         // 确保本地图片目录存在
         Path localImgDir = Paths.get("docs/local_img");
         if (!Files.exists(localImgDir)) {
@@ -299,108 +294,20 @@ public class ImageDownloader {
             LogUtils.log("创建本地图片目录: %s", localImgDir);
         }
         
-        // 读取模板文件
-        Path templateFile = Paths.get("docs/bing-template.html");
-        if (!Files.exists(templateFile)) {
-            LogUtils.log("模板文件不存在: %s", templateFile);
+        // 直接复制首页内容
+        Path indexFile = Paths.get("docs/index.html");
+        if (!Files.exists(indexFile)) {
+            LogUtils.log("首页文件不存在: %s", indexFile);
             return;
         }
         
-        String template = new String(Files.readAllBytes(templateFile), StandardCharsets.UTF_8);
+        String content = new String(Files.readAllBytes(indexFile), StandardCharsets.UTF_8);
         
-        // 获取最新的图片作为头部图片
-        Images headImage = imagesList.get(0);
-        String headImgUrl = getLocalImageUrl(headImage.getUrl(), headImage.getDate(), "1920");
-        String headTitle = "必应壁纸本地归档";
-        String headImgDesc = "这里收集了必应每日壁纸的本地归档，按月份组织，提供多种分辨率下载。";
-        
-        // 生成图片卡片列表
-        StringBuilder imgCardList = new StringBuilder();
-        int count = 0;
-        int maxImages = 30; // 显示最近30张图片
-        
-        for (Images image : imagesList) {
-            if (count >= maxImages) break;
-            if (image == null || image.getUrl() == null || image.getDate() == null) {
-                continue;
-            }
-            
-            String imgName = extractImageName(image.getUrl());
-            if (imgName == null || imgName.isEmpty()) {
-                continue;
-            }
-            
-            String yearMonth = image.getDate().substring(0, 7);
-            String smallImgUrl = "/local_img/" + yearMonth + "/" + imgName + "_480.jpg";
-            String mediumImgUrl = "/local_img/" + yearMonth + "/" + imgName + "_1920.jpg";
-            String largeImgUrl = "/local_img/" + yearMonth + "/" + imgName + "_UHD.jpg";
-            
-            // 检查本地图片是否存在
-            Path smallImgPath = Paths.get("docs" + smallImgUrl);
-            if (!Files.exists(smallImgPath)) {
-                continue;
-            }
-            
-            imgCardList.append(String.format(
-                "<div class=\"w3-third\">\n" +
-                "    <div class=\"w3-card w3-round-large w3-margin-bottom\">\n" +
-                "        <img src=\"%s\" alt=\"%s\" style=\"width:100%%; border-radius: 10px 10px 0 0;\" " +
-                "             onload=\"imgloading(this)\" class=\"smallImg\">\n" +
-                "        <div class=\"w3-container w3-padding\">\n" +
-                "            <h5>%s</h5>\n" +
-                "            <p class=\"w3-small\">%s</p>\n" +
-                "            <div class=\"w3-row\">\n" +
-                "                <div class=\"w3-col s4\">\n" +
-                "                    <a href=\"%s\" target=\"_blank\" class=\"w3-button w3-green w3-small w3-round\">小图</a>\n" +
-                "                </div>\n" +
-                "                <div class=\"w3-col s4\">\n" +
-                "                    <a href=\"%s\" target=\"_blank\" class=\"w3-button w3-blue w3-small w3-round\">1080P</a>\n" +
-                "                </div>\n" +
-                "                <div class=\"w3-col s4\">\n" +
-                "                    <a href=\"%s\" target=\"_blank\" class=\"w3-button w3-red w3-small w3-round\">4K</a>\n" +
-                "                </div>\n" +
-                "            </div>\n" +
-                "        </div>\n" +
-                "    </div>\n" +
-                "</div>\n",
-                smallImgUrl, image.getDesc(), image.getDate(), 
-                image.getDesc().length() > 50 ? image.getDesc().substring(0, 50) + "..." : image.getDesc(),
-                smallImgUrl, mediumImgUrl, largeImgUrl
-            ));
-            
-            count++;
-        }
-        
-        // 生成月份历史链接
-        StringBuilder monthHistory = new StringBuilder();
-        Map<String, Integer> monthCounts = new HashMap<>();
-        
-        for (Images image : imagesList) {
-            if (image == null || image.getDate() == null || image.getDate().length() < 7) {
-                continue;
-            }
-            String yearMonth = image.getDate().substring(0, 7);
-            monthCounts.put(yearMonth, monthCounts.getOrDefault(yearMonth, 0) + 1);
-        }
-        
-        monthCounts.entrySet().stream()
-            .sorted((e1, e2) -> e2.getKey().compareTo(e1.getKey()))
-            .limit(12)
-            .forEach(entry -> {
-                monthHistory.append(String.format(
-                    "<a href=\"#\" class=\"w3-tag w3-margin-right w3-margin-bottom\">%s (%d)</a>\n",
-                    entry.getKey(), entry.getValue()
-                ));
-            });
-        
-        // 替换模板中的占位符
-        String content = template
-            .replace("${head_img_url}", headImgUrl)
-            .replace("${head_title}", headTitle)
-            .replace("${head_img_desc}", headImgDesc)
-            .replace("${img_card_list}", imgCardList.toString())
-            .replace("${month_history}", monthHistory.toString())
-            .replace("${sidabar}", ""); // 归档页面不需要侧边栏
+        // 替换页面标题
+        content = content.replace(
+            "<title>必应壁纸|Bing Wallpaper</title>",
+            "<title>本地归档|必应壁纸|Bing Wallpaper</title>"
+        );
         
         // 修改导航栏，高亮归档页面
         content = content.replace(
@@ -408,9 +315,263 @@ public class ImageDownloader {
             "<a href=\"/archive.html\" class=\"w3-bar-item w3-button w3-hover-green w3-green\">本地归档</a>"
         );
         
+        // 替换所有必应图片链接为本地图片链接
+        content = replaceImageLinksWithLocal(content, imagesList);
+        
         // 写入归档页面文件
         Files.write(archiveFile, content.getBytes(StandardCharsets.UTF_8));
         LogUtils.log("已生成归档页面: %s", archiveFile);
+    }
+    
+    /**
+     * 替换HTML内容中的图片链接为本地图片链接
+     * 
+     * @param content HTML内容
+     * @param imagesList 图片列表
+     * @return 替换后的HTML内容
+     */
+    private static String replaceImageLinksWithLocal(String content, List<Images> imagesList) {
+        if (imagesList == null || imagesList.isEmpty()) {
+            return content;
+        }
+        
+        // 为每个图片创建URL映射
+        Map<String, Map<String, String>> imageUrlMappings = new HashMap<>();
+        
+        for (Images image : imagesList) {
+            if (image == null || image.getUrl() == null || image.getDate() == null) {
+                continue;
+            }
+            
+            Map<String, String> actualFiles = getActualDownloadedFiles(image);
+            if (!actualFiles.isEmpty()) {
+                imageUrlMappings.put(image.getUrl(), actualFiles);
+            }
+        }
+        
+        // 替换背景图片URL
+        // 匹配 background-image: url("https://cn.bing.com/th?id=xxx&pid=hp&w=2000") 格式
+        Pattern bgPattern = Pattern.compile("background-image:\\s*url\\([\"']?(https://cn\\.bing\\.com/th\\?id=[^\"'\\)&]+)([^\"'\\)]*)[\"']?\\)");
+        Matcher bgMatcher = bgPattern.matcher(content);
+        StringBuffer sb = new StringBuffer();
+        
+        while (bgMatcher.find()) {
+            String baseUrl = bgMatcher.group(1);
+            String params = bgMatcher.group(2);
+            String originalUrl = baseUrl + params;
+            
+            // 查找对应的本地图片
+            String localUrl = findLocalImageUrl(baseUrl, imageUrlMappings, "1920");
+            if (localUrl != null) {
+                bgMatcher.appendReplacement(sb, "background-image: url(\"" + localUrl + "\")");
+                LogUtils.log("替换背景图片URL: %s -> %s", originalUrl, localUrl);
+            } else {
+                // 如果没有本地图片，保持原样
+                bgMatcher.appendReplacement(sb, bgMatcher.group(0));
+            }
+        }
+        bgMatcher.appendTail(sb);
+        content = sb.toString();
+        
+        // 替换小图背景URL
+        // 匹配 background-image: url("https://cn.bing.com/th?id=xxx&pid=hp&w=480") 格式
+        Pattern smallBgPattern = Pattern.compile("background-image:\\s*url\\([\"']?(https://cn\\.bing\\.com/th\\?id=[^\"'\\)&]+)([^\"'\\)]*w=480[^\"'\\)]*)[\"']?\\)");
+        Matcher smallBgMatcher = smallBgPattern.matcher(content);
+        sb = new StringBuffer();
+        
+        while (smallBgMatcher.find()) {
+            String baseUrl = smallBgMatcher.group(1);
+            String params = smallBgMatcher.group(2);
+            String originalUrl = baseUrl + params;
+            
+            // 查找对应的本地图片
+            String localUrl = findLocalImageUrl(baseUrl, imageUrlMappings, "480");
+            if (localUrl != null) {
+                smallBgMatcher.appendReplacement(sb, "background-image: url(\"" + localUrl + "\")");
+                LogUtils.log("替换小图背景URL: %s -> %s", originalUrl, localUrl);
+            } else {
+                // 如果没有本地图片，保持原样
+                smallBgMatcher.appendReplacement(sb, smallBgMatcher.group(0));
+            }
+        }
+        smallBgMatcher.appendTail(sb);
+        content = sb.toString();
+        
+        // 替换img标签的src属性
+        Pattern imgPattern = Pattern.compile("src=[\"'](https://cn\\.bing\\.com/th\\?id=[^\"'&]+)([^\"']*)[\"']");
+        Matcher imgMatcher = imgPattern.matcher(content);
+        sb = new StringBuffer();
+        
+        while (imgMatcher.find()) {
+            String baseUrl = imgMatcher.group(1);
+            String params = imgMatcher.group(2);
+            String originalUrl = baseUrl + params;
+            
+            // 根据参数确定分辨率
+            String resolution = "480";
+            if (params.contains("w=1920")) {
+                resolution = "1920";
+            } else if (!params.contains("w=")) {
+                resolution = "UHD";
+            }
+            
+            String localUrl = findLocalImageUrl(baseUrl, imageUrlMappings, resolution);
+            if (localUrl != null) {
+                imgMatcher.appendReplacement(sb, "src=\"" + localUrl + "\"");
+                LogUtils.log("替换img标签URL: %s -> %s", originalUrl, localUrl);
+            } else {
+                // 如果没有本地图片，保持原样
+                imgMatcher.appendReplacement(sb, imgMatcher.group(0));
+            }
+        }
+        imgMatcher.appendTail(sb);
+        content = sb.toString();
+        
+        // 替换下载链接
+        Pattern linkPattern = Pattern.compile("href=[\"'](https://cn\\.bing\\.com/th\\?id=[^\"'&]+)([^\"']*)[\"']");
+        Matcher linkMatcher = linkPattern.matcher(content);
+        sb = new StringBuffer();
+        
+        while (linkMatcher.find()) {
+            String baseUrl = linkMatcher.group(1);
+            String params = linkMatcher.group(2);
+            String originalUrl = baseUrl + params;
+            
+            // 根据参数确定分辨率
+            String resolution = "UHD";
+            if (params.contains("w=1920")) {
+                resolution = "1920";
+            } else if (params.contains("w=480")) {
+                resolution = "480";
+            }
+            
+            String localUrl = findLocalImageUrl(baseUrl, imageUrlMappings, resolution);
+            if (localUrl != null) {
+                linkMatcher.appendReplacement(sb, "href=\"" + localUrl + "\"");
+                LogUtils.log("替换下载链接URL: %s -> %s", originalUrl, localUrl);
+            } else {
+                // 如果没有本地图片，保持原样
+                linkMatcher.appendReplacement(sb, linkMatcher.group(0));
+            }
+        }
+        linkMatcher.appendTail(sb);
+        content = sb.toString();
+        
+        return content;
+    }
+    
+    /**
+     * 查找对应的本地图片URL
+     * 
+     * @param baseUrl 基础URL
+     * @param imageUrlMappings 图片URL映射
+     * @param preferredResolution 首选分辨率
+     * @return 本地图片URL，如果找不到则返回null
+     */
+    private static String findLocalImageUrl(String baseUrl, Map<String, Map<String, String>> imageUrlMappings, String preferredResolution) {
+        // 遍历所有图片映射，查找匹配的基础URL
+        for (Map.Entry<String, Map<String, String>> entry : imageUrlMappings.entrySet()) {
+            String originalUrl = entry.getKey();
+            if (originalUrl.startsWith(baseUrl)) {
+                Map<String, String> files = entry.getValue();
+                
+                // 首先尝试获取首选分辨率
+                String localUrl = files.get(preferredResolution);
+                if (localUrl != null) {
+                    return localUrl;
+                }
+                
+                // 如果首选分辨率不存在，按优先级返回其他分辨率
+                if ("UHD".equals(preferredResolution)) {
+                    localUrl = files.get("1920");
+                    if (localUrl != null) return localUrl;
+                    localUrl = files.get("480");
+                    if (localUrl != null) return localUrl;
+                } else if ("1920".equals(preferredResolution)) {
+                    localUrl = files.get("UHD");
+                    if (localUrl != null) return localUrl;
+                    localUrl = files.get("480");
+                    if (localUrl != null) return localUrl;
+                } else if ("480".equals(preferredResolution)) {
+                    localUrl = files.get("1920");
+                    if (localUrl != null) return localUrl;
+                    localUrl = files.get("UHD");
+                    if (localUrl != null) return localUrl;
+                }
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * 获取实际下载的文件信息
+     * 
+     * @param image 图片信息
+     * @return 包含实际文件路径的映射，键为分辨率，值为文件路径
+     */
+    private static Map<String, String> getActualDownloadedFiles(Images image) {
+        Map<String, String> files = new HashMap<>();
+        
+        try {
+            String yearMonth = image.getDate().substring(0, 7);
+            Path monthDir = Paths.get("docs/local_img", yearMonth);
+            
+            if (!Files.exists(monthDir) || !Files.isDirectory(monthDir)) {
+                return files;
+            }
+            
+            // 获取图片名称
+            String imgName = extractImageName(image.getUrl());
+            if (imgName == null || imgName.isEmpty()) {
+                return files;
+            }
+            
+            // 检查各种分辨率的文件是否存在
+            String[] resolutions = {"480", "1920", "UHD"};
+            
+            for (String resolution : resolutions) {
+                String fileName = imgName + "_" + resolution + ".jpg";
+                Path filePath = monthDir.resolve(fileName);
+                
+                if (Files.exists(filePath)) {
+                    String webPath = "/local_img/" + yearMonth + "/" + fileName;
+                    files.put(resolution, webPath);
+                    LogUtils.log("找到本地文件: %s -> %s", resolution, webPath);
+                }
+            }
+            
+            // 如果没有找到预期的文件，尝试扫描目录中的所有文件
+            if (files.isEmpty()) {
+                LogUtils.log("未找到预期文件，扫描目录: %s", monthDir);
+                Files.list(monthDir)
+                    .filter(path -> path.toString().endsWith(".jpg"))
+                    .filter(path -> path.getFileName().toString().contains(imgName.substring(0, Math.min(imgName.length(), 10))))
+                    .forEach(path -> {
+                        String fileName = path.getFileName().toString();
+                        String webPath = "/local_img/" + yearMonth + "/" + fileName;
+                        
+                        // 根据文件名推断分辨率
+                        if (fileName.contains("_480")) {
+                            files.put("480", webPath);
+                        } else if (fileName.contains("_1920")) {
+                            files.put("1920", webPath);
+                        } else if (fileName.contains("_UHD")) {
+                            files.put("UHD", webPath);
+                        } else {
+                            // 如果无法确定分辨率，默认作为UHD
+                            files.put("UHD", webPath);
+                        }
+                        
+                        LogUtils.log("扫描到文件: %s", webPath);
+                    });
+            }
+            
+        } catch (Exception e) {
+            LogUtils.log("获取实际下载文件时出错: %s, 错误: %s", image.getUrl(), e.getMessage());
+        }
+        
+        return files;
     }
     
     /**
@@ -531,6 +692,55 @@ public class ImageDownloader {
      * 获取本地图片URL
      * 
      * @param originalUrl 原始URL
+     * @param date 图片日期
+     * @param resolution 分辨率
+     * @return 本地图片URL，如果找不到对应的本地图片则返回原始URL
+     */
+    private static String getLocalImageUrl(String originalUrl, String date, String resolution) {
+        try {
+            // 提取图片名称
+            String imgName = extractImageName(originalUrl);
+            if (imgName == null || imgName.isEmpty()) {
+                return originalUrl;
+            }
+            
+            // 构建本地图片路径
+            String yearMonth = date.substring(0, 7);
+            String fileName = imgName + "_" + resolution + ".jpg";
+            String localPath = "/local_img/" + yearMonth + "/" + fileName;
+            
+            // 检查本地图片是否存在
+            Path localImgPath = Paths.get("docs" + localPath);
+            if (Files.exists(localImgPath)) {
+                return localPath;
+            }
+            
+            // 如果指定分辨率的文件不存在，尝试查找其他分辨率的文件
+            Path monthDir = Paths.get("docs/local_img", yearMonth);
+            if (Files.exists(monthDir) && Files.isDirectory(monthDir)) {
+                try {
+                    return Files.list(monthDir)
+                        .filter(path -> path.toString().endsWith(".jpg"))
+                        .filter(path -> path.getFileName().toString().startsWith(imgName))
+                        .findFirst()
+                        .map(path -> "/local_img/" + yearMonth + "/" + path.getFileName().toString())
+                        .orElse(originalUrl);
+                } catch (Exception e) {
+                    LogUtils.log("扫描本地图片目录时出错: %s", e.getMessage());
+                }
+            }
+            
+            return originalUrl;
+        } catch (Exception e) {
+            LogUtils.log("获取本地图片URL时出错: %s, 错误: %s", originalUrl, e.getMessage());
+            return originalUrl;
+        }
+    }
+    
+    /**
+     * 获取本地图片URL（兼容旧方法）
+     * 
+     * @param originalUrl 原始URL
      * @param htmlFile HTML文件路径
      * @return 本地图片URL，如果找不到对应的本地图片则返回null
      */
@@ -561,21 +771,18 @@ public class ImageDownloader {
                 return null;
             }
             
-            // 构建本地图片路径
-            String yearMonth = date.substring(0, 7);
-            String localPath = "/local_img/" + yearMonth + "/" + imgName + "_" + resolution + ".jpg";
+            // 使用新的方法获取本地图片URL
+            String localUrl = getLocalImageUrl(originalUrl, date, resolution);
             
-            // 检查本地图片是否存在
-            Path localImgPath = Paths.get("docs" + localPath);
-            if (!Files.exists(localImgPath)) {
-                LogUtils.log("本地图片不存在: %s", localImgPath);
+            // 如果返回的是原始URL，说明没有找到本地文件
+            if (localUrl.equals(originalUrl)) {
                 return null;
             }
             
             // 缓存映射关系
-            imageUrlMap.put(originalUrl, localPath);
+            imageUrlMap.put(originalUrl, localUrl);
             
-            return localPath;
+            return localUrl;
         } catch (Exception e) {
             LogUtils.log("获取本地图片URL时出错: %s, 错误: %s", originalUrl, e.getMessage());
             return null;
