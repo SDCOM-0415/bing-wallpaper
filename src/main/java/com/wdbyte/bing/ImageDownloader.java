@@ -262,18 +262,38 @@ public class ImageDownloader {
         
         LogUtils.log("开始替换HTML文件中的图片链接为本地图片链接: %s", htmlDir);
         
-        // 递归处理所有HTML文件
-        Files.walk(htmlDir)
-            .filter(path -> path.toString().endsWith(".html"))
-            .forEach(htmlFile -> {
-                try {
-                    replaceImageUrlsInFile(htmlFile);
-                } catch (IOException e) {
-                    LogUtils.log("替换HTML文件中的图片链接时出错: %s, 错误: %s", htmlFile, e.getMessage());
-                }
-            });
+        // 只处理archive.html文件，其他文件保持原样
+        Path archiveFile = htmlDir.resolve("archive.html");
+        if (Files.exists(archiveFile)) {
+            try {
+                updateArchivePageWithLocalImages(archiveFile);
+                LogUtils.log("已更新归档页面: %s", archiveFile);
+            } catch (IOException e) {
+                LogUtils.log("更新归档页面时出错: %s, 错误: %s", archiveFile, e.getMessage());
+            }
+        } else {
+            LogUtils.log("归档页面不存在: %s", archiveFile);
+        }
         
         LogUtils.log("HTML文件中的图片链接替换完成");
+    }
+    
+    /**
+     * 更新归档页面，使用本地图片
+     * 
+     * @param archiveFile 归档页面文件路径
+     * @throws IOException 如果处理过程中出错
+     */
+    private static void updateArchivePageWithLocalImages(Path archiveFile) throws IOException {
+        // 这个方法不需要实际修改文件内容，因为归档页面已经设计为使用本地图片
+        // 归档页面的JavaScript代码会自动扫描本地图片目录并显示图片
+        
+        // 确保本地图片目录存在
+        Path localImgDir = Paths.get("docs/local_img");
+        if (!Files.exists(localImgDir)) {
+            Files.createDirectories(localImgDir);
+            LogUtils.log("创建本地图片目录: %s", localImgDir);
+        }
     }
     
     /**

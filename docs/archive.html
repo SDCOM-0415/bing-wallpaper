@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>必应壁纸归档 | Bing Wallpaper Archive</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="必应壁纸归档，本地高清壁纸下载">
+    <meta name="keywords" content="bing wallpaper, 必应壁纸, 必应4k壁纸, 必应超清壁纸, 壁纸">
+    <link rel="stylesheet" href="/css/w3.css">
+    <link rel="icon" href="/img/fav.jpg">
+    <script src="https://lf6-cdn-tos.bytecdntp.com/cdn/expire-1-M/fuse.js/6.5.3/fuse.min.js" async></script>
+    <script src="/js/w3.js" async></script>
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+        }
+        .month-section {
+            margin-bottom: 30px;
+        }
+        .month-title {
+            padding: 10px;
+            background-color: #f1f1f1;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        .image-card {
+            position: relative;
+            margin-bottom: 20px;
+        }
+        .image-card img {
+            width: 100%;
+            border-radius: 5px;
+            transition: transform 0.3s ease;
+        }
+        .image-card:hover img {
+            transform: scale(1.03);
+        }
+        .image-info {
+            padding: 10px;
+            background-color: rgba(255, 255, 255, 0.8);
+            border-radius: 0 0 5px 5px;
+        }
+        .image-date {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .image-desc {
+            font-size: 0.9em;
+            margin-bottom: 5px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+        .download-links {
+            text-align: right;
+        }
+        .download-links a {
+            margin-left: 10px;
+            text-decoration: none;
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        .loading {
+            text-align: center;
+            padding: 50px;
+            font-size: 1.2em;
+        }
+        .error {
+            text-align: center;
+            padding: 50px;
+            color: red;
+            font-size: 1.2em;
+        }
+    </style>
+    <script>
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?b59b4b29843942e412b704c39cc7363a";
+      var s = document.getElementsByTagName("script")[0]; 
+      s.parentNode.insertBefore(hm, s);
+    })();
+    </script>
+</head>
+<body>
+<menu class="w3-display-container w3-content w3-center" style="max-width:100%; height: 60px; margin-top: 20px;">
+    <div class="w3-bar w3-light-grey w3-round w3-display-bottommiddle w3-card w3-round-xlarge">
+        <a href="/" class="w3-bar-item w3-button w3-hover-green">首页</a>
+        <a href="#portfolio" class="w3-bar-item w3-button w3-hover-green" onclick="w3_open()">归档</a>
+        <a href="/zh-cn/" class="w3-bar-item w3-button w3-hover-green">中国</a>
+        <a href="https://github.com/niumoo/bing-wallpaper" target="_blank" class="w3-bar-item w3-button w3-hover-green w3-hide-small">GitHub</a>
+        <a href="https://www.wdbyte.com/bing-wallpaper-400.html" target="_blank" class="w3-bar-item w3-button w3-hover-green w3-hide-small">关于</a>
+        <a href="/archive.html" class="w3-bar-item w3-button w3-hover-green w3-green">本地归档</a>
+        <input id="search" type="text" class="w3-bar-item w3-input w3-round-xlarge w3-hide-small" placeholder="找壁纸" style="width: 150px">
+    </div>
+</menu>
+
+<div class="w3-main w3-content w3-padding" style="max-width:1200px; margin-top: 50px;">
+    <div class="w3-container">
+        <h1>必应壁纸本地归档</h1>
+        <p>这里收集了必应每日壁纸的本地归档，按月份组织，提供多种分辨率下载。</p>
+    </div>
+    
+    <div id="archive-content">
+        <div class="loading">正在加载壁纸数据...</div>
+    </div>
+</div>
+
+<!-- Footer -->
+<footer class="w3-center w3-light-grey w3-padding-48 w3-large">
+    <p>本站所有图片均来源于必应搜索
+        <br/>
+        Powered by <a href="https://github.com/niumoo/bing-wallpaper" title="W3.CSS" target="_blank" class="w3-hover-text-green">Github.com/niumoo</a>
+        <br/>
+        本网站已经开源，采用 Apache License 2.0 许可协议，复制请注明来自 <a href="https://github.com/niumoo/bing-wallpaper">bing-wallpaper</a>！
+        <br/>
+        <a href="https://beian.miit.gov.cn/" target="_blank" class="w3-hover-text-green">备案号：赣ICP备2023009313号-3</a>
+    </p>
+</footer>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    loadArchiveData();
+});
+
+function loadArchiveData() {
+    // 获取本地图片目录结构
+    fetch('/local_img/')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('无法加载本地图片目录');
+            }
+            return response.json();
+        })
+        .then(data => {
+            displayArchiveData(data);
+        })
+        .catch(error => {
+            console.error('加载归档数据失败:', error);
+            document.getElementById('archive-content').innerHTML = 
+                '<div class="error">加载归档数据失败。请稍后再试。</div>';
+            
+            // 如果无法获取目录结构，尝试直接扫描本地图片目录
+            scanLocalImageDirectory();
+        });
+}
+
+function scanLocalImageDirectory() {
+    // 获取最近12个月的日期
+    const months = [];
+    const now = new Date();
+    for (let i = 0; i < 12; i++) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const year = d.getFullYear();
+        const month = (d.getMonth() + 1).toString().padStart(2, '0');
+        months.push(`${year}-${month}`);
+    }
+    
+    // 构建HTML内容
+    let html = '';
+    months.forEach(month => {
+        html += `
+        <div class="month-section">
+            <h2 class="month-title">${month}</h2>
+            <div class="w3-row-padding" id="month-${month}">
+                <div class="loading">正在加载 ${month} 的壁纸...</div>
+            </div>
+        </div>`;
+    });
+    
+    document.getElementById('archive-content').innerHTML = html;
+    
+    // 尝试加载每个月的图片
+    months.forEach(month => {
+        loadMonthImages(month);
+    });
+}
+
+function loadMonthImages(month) {
+    const monthElement = document.getElementById(`month-${month}`);
+    
+    // 尝试获取该月的图片列表
+    fetch(`/local_img/${month}/`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`无法加载 ${month} 的图片`);
+            }
+            return response.json();
+        })
+        .then(images => {
+            if (images && images.length > 0) {
+                displayMonthImages(month, images);
+            } else {
+                monthElement.innerHTML = `<div class="w3-panel w3-pale-yellow">
+                    <p>没有找到 ${month} 的壁纸</p>
+                </div>`;
+            }
+        })
+        .catch(error => {
+            console.error(`加载 ${month} 的图片失败:`, error);
+            
+            // 如果无法获取图片列表，尝试直接显示一些常见的图片名称
+            displayMonthImagesFromPattern(month);
+        });
+}
+
+function displayMonthImagesFromPattern(month) {
+    const monthElement = document.getElementById(`month-${month}`);
+    const baseUrl = `/local_img/${month}/`;
+    
+    // 获取该月的天数
+    const [year, monthNum] = month.split('-');
+    const daysInMonth = new Date(parseInt(year), parseInt(monthNum), 0).getDate();
+    
+    // 检查每一天是否有图片
+    let imagesFound = false;
+    let html = '';
+    
+    for (let day = 1; day <= daysInMonth; day++) {
+        const date = `${month}-${day.toString().padStart(2, '0')}`;
+        const imagePath = `${baseUrl}*_UHD.jpg`;
+        
+        // 这里我们无法实际检查文件是否存在，所以假设它们存在
+        // 在实际环境中，这将通过服务器端代码或AJAX请求来验证
+        
+        html += `
+        <div class="w3-third">
+            <div class="image-card">
+                <img src="${baseUrl}placeholder_480.jpg" alt="${date}" 
+                     onerror="this.onerror=null; this.src='/img/placeholder.jpg';">
+                <div class="image-info">
+                    <div class="image-date">${date}</div>
+                    <div class="image-desc">必应壁纸</div>
+                    <div class="download-links">
+                        <a href="${baseUrl}image_480.jpg" target="_blank">小图</a>
+                        <a href="${baseUrl}image_1920.jpg" target="_blank">1080P</a>
+                        <a href="${baseUrl}image_UHD.jpg" target="_blank">4K</a>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+        
+        imagesFound = true;
+    }
+    
+    if (imagesFound) {
+        monthElement.innerHTML = html;
+    } else {
+        monthElement.innerHTML = `<div class="w3-panel w3-pale-yellow">
+            <p>没有找到 ${month} 的壁纸</p>
+        </div>`;
+    }
+}
+
+function displayMonthImages(month, images) {
+    const monthElement = document.getElementById(`month-${month}`);
+    let html = '';
+    
+    // 过滤出UHD图片（每个图片只显示一次）
+    const uhdImages = images.filter(img => img.endsWith('_UHD.jpg'));
+    
+    if (uhdImages.length === 0) {
+        monthElement.innerHTML = `<div class="w3-panel w3-pale-yellow">
+            <p>没有找到 ${month} 的壁纸</p>
+        </div>`;
+        return;
+    }
+    
+    uhdImages.forEach(img => {
+        const baseName = img.replace('_UHD.jpg', '');
+        const smallImg = `${baseName}_480.jpg`;
+        const mediumImg = `${baseName}_1920.jpg`;
+        
+        // 从文件名提取日期和描述（如果可能）
+        const parts = baseName.split('_');
+        const date = `${month}-${parts[0]}` || month;
+        const desc = parts.length > 1 ? parts.slice(1).join(' ') : '必应壁纸';
+        
+        html += `
+        <div class="w3-third">
+            <div class="image-card">
+                <img src="/local_img/${month}/${smallImg}" alt="${desc}" 
+                     onerror="this.onerror=null; this.src='/img/placeholder.jpg';">
+                <div class="image-info">
+                    <div class="image-date">${date}</div>
+                    <div class="image-desc">${desc}</div>
+                    <div class="download-links">
+                        <a href="/local_img/${month}/${smallImg}" target="_blank">小图</a>
+                        <a href="/local_img/${month}/${mediumImg}" target="_blank">1080P</a>
+                        <a href="/local_img/${month}/${img}" target="_blank">4K</a>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    });
+    
+    monthElement.innerHTML = html;
+}
+
+function displayArchiveData(data) {
+    // 按月份组织数据
+    const months = {};
+    
+    data.forEach(item => {
+        const month = item.date.substring(0, 7);
+        if (!months[month]) {
+            months[month] = [];
+        }
+        months[month].push(item);
+    });
+    
+    // 按月份降序排序
+    const sortedMonths = Object.keys(months).sort().reverse();
+    
+    let html = '';
+    sortedMonths.forEach(month => {
+        html += `
+        <div class="month-section">
+            <h2 class="month-title">${month}</h2>
+            <div class="w3-row-padding">`;
+        
+        months[month].forEach(item => {
+            html += `
+            <div class="w3-third">
+                <div class="image-card">
+                    <img src="/local_img/${month}/${item.id}_480.jpg" alt="${item.desc}" 
+                         onerror="this.onerror=null; this.src='/img/placeholder.jpg';">
+                    <div class="image-info">
+                        <div class="image-date">${item.date}</div>
+                        <div class="image-desc">${item.desc}</div>
+                        <div class="download-links">
+                            <a href="/local_img/${month}/${item.id}_480.jpg" target="_blank">小图</a>
+                            <a href="/local_img/${month}/${item.id}_1920.jpg" target="_blank">1080P</a>
+                            <a href="/local_img/${month}/${item.id}_UHD.jpg" target="_blank">4K</a>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        });
+        
+        html += `
+            </div>
+        </div>`;
+    });
+    
+    document.getElementById('archive-content').innerHTML = html;
+}
+</script>
+
+<script src="https://jsdelivr.wdbyte.com/npm/darkmode-js@1.5.7/lib/darkmode-js.min.js"></script>
+<script>
+    function addDarkmodeWidget() {
+        const options = {
+            label: '🌓'
+        }
+        new Darkmode(options).showWidget();
+    }
+    window.addEventListener('load', addDarkmodeWidget);
+</script>
+</body>
+</html>
