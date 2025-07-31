@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * 图片下载工具类
@@ -279,14 +280,17 @@ public class ImageDownloader {
     }
     
     /**
-     * 更新归档页面，使用本地图片
+     * 生成归档页面，使用本地图片
      * 
+     * @param imagesList 图片列表
      * @param archiveFile 归档页面文件路径
      * @throws IOException 如果处理过程中出错
      */
-    private static void updateArchivePageWithLocalImages(Path archiveFile) throws IOException {
-        // 这个方法不需要实际修改文件内容，因为归档页面已经设计为使用本地图片
-        // 归档页面的JavaScript代码会自动扫描本地图片目录并显示图片
+    public static void generateArchivePage(List<Images> imagesList, Path archiveFile) throws IOException {
+        if (imagesList == null || imagesList.isEmpty()) {
+            LogUtils.log("图片列表为空，无法生成归档页面");
+            return;
+        }
         
         // 确保本地图片目录存在
         Path localImgDir = Paths.get("docs/local_img");
@@ -294,6 +298,153 @@ public class ImageDownloader {
             Files.createDirectories(localImgDir);
             LogUtils.log("创建本地图片目录: %s", localImgDir);
         }
+        
+        // 读取模板文件
+        Path templateFile = Paths.get("docs/bing-template.html");
+        if (!Files.exists(templateFile)) {
+            LogUtils.log("模板文件不存在: %s", templateFile);
+            return;
+        }
+        
+        String template = new String(Files.readAllBytes(templateFile), StandardCharsets.UTF_8);
+        
+        // 获取最新的图片作为头部图片
+        Images headImage = imagesList.get(0);
+        String headImgUrl = getLocalImageUrl(headImage.getUrl(), headImage.getDate(), "1920");
+        String headTitle = "必应壁纸本地归档";
+        String headImgDesc = "这里收集了必应每日壁纸的本地归档，按月份组织，提供多种分辨率下载。";
+        
+        // 生成图片卡片列表
+        StringBuilder imgCardList = new StringBuilder();
+        int count = 0;
+        int maxImages = 30; // 显示最近30张图片
+        
+        for (Images image : imagesList) {
+            if (count >= maxImages) break;
+            if (image == null || image.getUrl() == null || image.getDate() == null) {
+                continue;
+            }
+            
+            String imgName = extractImageName(image.getUrl());
+            if (imgName == null || imgName.isEmpty()) {
+                continue;
+            }
+            
+            String yearMonth = image.getDate().substring(0, 7);
+            String smallImgUrl = "/local_img/" + yearMonth + "/" + imgName + "_480.jpg";
+            String mediumImgUrl = "/local_img/" + yearMonth + "/" + imgName + "_1920.jpg";
+            String largeImgUrl = "/local_img/" + yearMonth + "/" + imgName + "_UHD.jpg";
+            
+            // 检查本地图片是否存在
+            Path smallImgPath = Paths.get("docs" + smallImgUrl);
+            if (!Files.exists(smallImgPath)) {
+                continue;
+            }
+            
+            imgCardList.append(String.format(
+                "<div class=\"w3-third\">\n" +
+                "    <div class=\"w3-card w3-round-large w3-margin-bottom\">\n" +
+                "        <img src=\"%s\" alt=\"%s\" style=\"width:100%%; border-radius: 10px 10px 0 0;\" " +
+                "             onload=\"imgloading(this)\" class=\"smallImg\">\n" +
+                "        <div class=\"w3-container w3-padding\">\n" +
+                "            <h5>%s</h5>\n" +
+                "            <p class=\"w3-small\">%s</p>\n" +
+                "            <div class=\"w3-row\">\n" +
+                "                <div class=\"w3-col s4\">\n" +
+                "                    <a href=\"%s\" target=\"_blank\" class=\"w3-button w3-green w3-small w3-round\">小图</a>\n" +
+                "                </div>\n" +
+                "                <div class=\"w3-col s4\">\n" +
+                "                    <a href=\"%s\" target=\"_blank\" class=\"w3-button w3-blue w3-small w3-round\">1080P</a>\n" +
+                "                </div>\n" +
+                "                <div class=\"w3-col s4\">\n" +
+                "                    <a href=\"%s\" target=\"_blank\" class=\"w3-button w3-red w3-small w3-round\">4K</a>\n" +
+                "                </div>\n" +
+                "            </div>\n" +
+                "        </div>\n" +
+                "    </div>\n" +
+                "</div>\n",
+                smallImgUrl, image.getDesc(), image.getDate(), 
+                image.getDesc().length() > 50 ? image.getDesc().substring(0, 50) + "..." : image.getDesc(),
+                smallImgUrl, mediumImgUrl, largeImgUrl
+            ));
+            
+            count++;
+        }
+        
+        // 生成月份历史链接
+        StringBuilder monthHistory = new StringBuilder();
+        Map<String, Integer> monthCounts = new HashMap<>();
+        
+        for (Images image : imagesList) {
+            if (image == null || image.getDate() == null || image.getDate().length() < 7) {
+                continue;
+            }
+            String yearMonth = image.getDate().substring(0, 7);
+            monthCounts.put(yearMonth, monthCounts.getOrDefault(yearMonth, 0) + 1);
+        }
+        
+        monthCounts.entrySet().stream()
+            .sorted((e1, e2) -> e2.getKey().compareTo(e1.getKey()))
+            .limit(12)
+            .forEach(entry -> {
+                monthHistory.append(String.format(
+                    "<a href=\"#\" class=\"w3-tag w3-margin-right w3-margin-bottom\">%s (%d)</a>\n",
+                    entry.getKey(), entry.getValue()
+                ));
+            });
+        
+        // 替换模板中的占位符
+        String content = template
+            .replace("${head_img_url}", headImgUrl)
+            .replace("${head_title}", headTitle)
+            .replace("${head_img_desc}", headImgDesc)
+            .replace("${img_card_list}", imgCardList.toString())
+            .replace("${month_history}", monthHistory.toString())
+            .replace("${sidabar}", ""); // 归档页面不需要侧边栏
+        
+        // 修改导航栏，高亮归档页面
+        content = content.replace(
+            "<a href=\"/archive.html\" class=\"w3-bar-item w3-button w3-hover-green\">本地归档</a>",
+            "<a href=\"/archive.html\" class=\"w3-bar-item w3-button w3-hover-green w3-green\">本地归档</a>"
+        );
+        
+        // 写入归档页面文件
+        Files.write(archiveFile, content.getBytes(StandardCharsets.UTF_8));
+        LogUtils.log("已生成归档页面: %s", archiveFile);
+    }
+    
+    /**
+     * 获取本地图片URL
+     * 
+     * @param originalUrl 原始URL
+     * @param date 图片日期
+     * @param resolution 分辨率
+     * @return 本地图片URL
+     */
+    private static String getLocalImageUrl(String originalUrl, String date, String resolution) {
+        try {
+            String imgName = extractImageName(originalUrl);
+            if (imgName == null || imgName.isEmpty()) {
+                return originalUrl; // 如果无法提取名称，返回原始URL
+            }
+            
+            String yearMonth = date.substring(0, 7);
+            return "/local_img/" + yearMonth + "/" + imgName + "_" + resolution + ".jpg";
+        } catch (Exception e) {
+            LogUtils.log("获取本地图片URL时出错: %s, 错误: %s", originalUrl, e.getMessage());
+            return originalUrl;
+        }
+    }
+    
+    /**
+     * 更新归档页面，使用本地图片
+     * 
+     * @param archiveFile 归档页面文件路径
+     * @throws IOException 如果处理过程中出错
+     */
+    private static void updateArchivePageWithLocalImages(Path archiveFile) throws IOException {
+        // 这个方法现在不需要了，因为我们有了generateArchivePage方法
+        LogUtils.log("归档页面将通过generateArchivePage方法生成");
     }
     
     /**
