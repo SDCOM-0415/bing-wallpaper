@@ -83,18 +83,8 @@ public class Wallpaper {
             BingFileUtils.writeReadme(imagesList);
             BingFileUtils.writeMonthInfo(imagesList);
             
-            // 下载图片到本地目录
-            ImageDownloader.downloadImages(imagesList);
-            
             // 生成网站
             new WebSiteGenerator().htmlGenerator();
-            
-            // 生成归档页面
-            Path archiveFile = Paths.get("docs/archive.html");
-            ImageDownloader.generateArchivePage(imagesList, archiveFile);
-            
-            // 生成归档页面
-            ImageDownloader.generateArchivePage(imagesList, HtmlFileUtils.BING_HTML_ROOT.resolve("archive.html"));
         }
     }
 
