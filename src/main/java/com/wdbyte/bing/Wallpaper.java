@@ -89,6 +89,10 @@ public class Wallpaper {
             new WebSiteGenerator().htmlGenerator();
             
             // 生成归档页面
+            Path archiveFile = Paths.get("docs/archive.html");
+            ImageDownloader.generateArchivePage(imagesList, archiveFile);
+            
+            // 生成归档页面
             ImageDownloader.generateArchivePage(imagesList, HtmlFileUtils.BING_HTML_ROOT.resolve("archive.html"));
         }
     }

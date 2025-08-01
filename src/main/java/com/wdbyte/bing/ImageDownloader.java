@@ -188,37 +188,37 @@ public class ImageDownloader {
     }
     
     /**
-     * 生成归档页面，使用与首页相同的模板，但图片链接指向本地文件
+     * 从URL中提取图片名称
      * 
-     * @param htmlDir HTML文件目录
-     * @throws IOException 如果处理过程中出错
+     * @param url 图片URL
+     * @return 图片名称
      */
-    public static void generateArchivePage(Path htmlDir) throws IOException {
-        if (!Files.exists(htmlDir) || !Files.isDirectory(htmlDir)) {
-            LogUtils.log("HTML目录不存在或不是目录: %s", htmlDir);
-            return;
-        }
-        
-        LogUtils.log("开始生成归档页面: %s", htmlDir);
-        
-        // 读取首页内容
-        Path indexFile = htmlDir.resolve("index.html");
-        if (!Files.exists(indexFile)) {
-            LogUtils.log("首页文件不存在: %s", indexFile);
-            return;
-        }
-        
-        String indexContent = new String(Files.readAllBytes(indexFile), StandardCharsets.UTF_8);
-        
-        // 替换图片链接为本地链接
-        String archiveContent = replaceImageLinksWithLocal(indexContent);
-        
-        // 保存归档页面
-        Path archiveFile = htmlDir.resolve("archive.html");
-        Files.write(archiveFile, archiveContent.getBytes(StandardCharsets.UTF_8));
-        
-        LogUtils.log("归档页面生成完成: %s", archiveFile);
-    }
+    private static String extractImageName(String url) {
+        try {
+            if (url == null || url.isEmpty()) {
+                return null;
+            }
+            
+            // 必应壁纸URL格式通常是：https://cn.bing.com/th?id=OHR.SaypeDubai_EN-US5078679271_UHD.jpg&pid=hp&w=1920
+            // 需要从id参数中提取图片名称
+            
+            if (url.contains("id=")) {
+                // 提取id参数值
+                int idStart = url.indexOf("id=") + 3;
+                int idEnd = url.indexOf("&", idStart);
+                if (idEnd == -1) {
+                    idEnd = url.length();
+                }
+                
+                String id = url.substring(idStart, idEnd);
+                
+                // 移除文件扩展名
+                if (id.contains(".")) {
+                    id = id.substring(0, id.lastIndexOf('.'));
+                }
+                
+                return id;
+            }
             
             // 如果URL不包含id参数，尝试从路径中提取文件名
             String baseUrl = url.contains("?") ? url.split("\\?")[0] : url;
@@ -249,132 +249,6 @@ public class ImageDownloader {
         }
     }
     
-    /**
-     * 替换图片链接为本地链接
-     * 
-     * @param content HTML内容
-     * @return 替换后的HTML内容
-     */
-    private static String replaceImageLinksWithLocal(String content) {
-        LogUtils.log("开始替换图片链接为本地链接");
-        
-        // 替换头部背景图片
-        content = content.replaceAll(
-            "background-image: url\\(\"(https://cn\\.bing\\.com/th\\?id=([^\"]+))\"\\)",
-            (matchResult) -> {
-                String originalUrl = matchResult.group(1);
-                String localUrl = getLocalImageUrlFromOriginal(originalUrl);
-                if (localUrl != null) {
-                    LogUtils.log("替换头部背景图片: %s -> %s", originalUrl, localUrl);
-                    return "background-image: url(\"" + localUrl + "\")";
-                }
-                return matchResult.group(0); // 如果没有本地文件，保持原样
-            }
-        );
-        
-        // 替换JavaScript中的图片URL
-        content = content.replaceAll(
-            "img\\.src = '(https://cn\\.bing\\.com/th\\?id=([^']+))'",
-            (matchResult) -> {
-                String originalUrl = matchResult.group(1);
-                String localUrl = getLocalImageUrlFromOriginal(originalUrl);
-                if (localUrl != null) {
-                    LogUtils.log("替换JavaScript图片URL: %s -> %s", originalUrl, localUrl);
-                    return "img.src = '" + localUrl + "'";
-                }
-                return matchResult.group(0);
-            }
-        );
-        
-        // 替换img标签的src属性
-        content = content.replaceAll(
-            "src=\"(https://cn\\.bing\\.com/th\\?id=([^\"]+))\"",
-            (matchResult) -> {
-                String originalUrl = matchResult.group(1);
-                String localUrl = getLocalImageUrlFromOriginal(originalUrl);
-                if (localUrl != null) {
-                    LogUtils.log("替换img标签src: %s -> %s", originalUrl, localUrl);
-                    return "src=\"" + localUrl + "\"";
-                }
-                return matchResult.group(0);
-            }
-        );
-        
-        // 替换下载链接的href属性
-        content = content.replaceAll(
-            "href=\"(https://cn\\.bing\\.com/th\\?id=([^\"]+))\"",
-            (matchResult) -> {
-                String originalUrl = matchResult.group(1);
-                String localUrl = getLocalImageUrlFromOriginal(originalUrl);
-                if (localUrl != null) {
-                    LogUtils.log("替换下载链接href: %s -> %s", originalUrl, localUrl);
-                    return "href=\"" + localUrl + "\"";
-                }
-                return matchResult.group(0);
-            }
-        );
-        
-        LogUtils.log("图片链接替换完成");
-        return content;
-    }
-    
-    /**
-     * 从原始URL获取本地图片URL
-     * 
-     * @param originalUrl 原始URL
-     * @return 本地图片URL，如果找不到对应的本地图片则返回null
-     */
-    private static String getLocalImageUrlFromOriginal(String originalUrl) {
-        try {
-            // 提取图片名称
-            String imgName = extractImageName(originalUrl);
-            if (imgName == null || imgName.isEmpty()) {
-                return null;
-            }
-            
-            // 确定分辨率
-            String resolution = "UHD";
-            if (originalUrl.contains("w=50") || originalUrl.contains("w=480")) {
-                resolution = "480";
-            } else if (originalUrl.contains("w=384") || originalUrl.contains("h=216")) {
-                resolution = "480";
-            } else if (originalUrl.contains("w=1920") || originalUrl.contains("w=2000")) {
-                resolution = "1920";
-            } else if (originalUrl.contains("w=3840") || originalUrl.contains("h=2160")) {
-                resolution = "UHD";
-            }
-            
-            // 扫描本地图片目录，查找匹配的文件
-            Path localImgDir = Paths.get("docs/local_img");
-            if (!Files.exists(localImgDir)) {
-                return null;
-            }
-            
-            // 遍历所有年月目录
-            try {
-                return Files.walk(localImgDir, 2)
-                    .filter(Files::isRegularFile)
-                    .filter(path -> {
-                        String fileName = path.getFileName().toString();
-                        return fileName.startsWith(imgName + "_" + resolution) && fileName.endsWith(".jpg");
-                    })
-                    .findFirst()
-                    .map(path -> {
-                        // 转换为相对于docs目录的路径
-                        Path docsDir = Paths.get("docs");
-                        Path relativePath = docsDir.relativize(path);
-                        return "/" + relativePath.toString().replace("\\", "/");
-                    })
-                    .orElse(null);
-            } catch (IOException e) {
-                LogUtils.log("扫描本地图片目录时出错: %s", e.getMessage());
-                return null;
-            }
-        } catch (Exception e) {
-            LogUtils.log("获取本地图片URL时出错: %s, 错误: %s", originalUrl, e.getMessage());
-            return null;
-        }
-    }
     
     /**
      * 生成归档页面，完全使用首页内容，只替换图片链接为本地文件
@@ -420,6 +294,7 @@ public class ImageDownloader {
         LogUtils.log("已生成归档页面: %s", archiveFile);
     }
     
+    
     /**
      * 替换HTML内容中的图片链接为本地图片链接
      * 
@@ -447,7 +322,6 @@ public class ImageDownloader {
         }
         
         // 替换背景图片URL
-        // 匹配 background-image: url("https://cn.bing.com/th?id=xxx&pid=hp&w=2000") 格式
         Pattern bgPattern = Pattern.compile("background-image:\\s*url\\([\"']?(https://cn\\.bing\\.com/th\\?id=[^\"'\\)&]+)([^\"'\\)]*)[\"']?\\)");
         Matcher bgMatcher = bgPattern.matcher(content);
         StringBuffer sb = new StringBuffer();
@@ -457,41 +331,15 @@ public class ImageDownloader {
             String params = bgMatcher.group(2);
             String originalUrl = baseUrl + params;
             
-            // 查找对应的本地图片
             String localUrl = findLocalImageUrl(baseUrl, imageUrlMappings, "1920");
             if (localUrl != null) {
                 bgMatcher.appendReplacement(sb, "background-image: url(\"" + localUrl + "\")");
                 LogUtils.log("替换背景图片URL: %s -> %s", originalUrl, localUrl);
             } else {
-                // 如果没有本地图片，保持原样
                 bgMatcher.appendReplacement(sb, bgMatcher.group(0));
             }
         }
         bgMatcher.appendTail(sb);
-        content = sb.toString();
-        
-        // 替换小图背景URL
-        // 匹配 background-image: url("https://cn.bing.com/th?id=xxx&pid=hp&w=480") 格式
-        Pattern smallBgPattern = Pattern.compile("background-image:\\s*url\\([\"']?(https://cn\\.bing\\.com/th\\?id=[^\"'\\)&]+)([^\"'\\)]*w=480[^\"'\\)]*)[\"']?\\)");
-        Matcher smallBgMatcher = smallBgPattern.matcher(content);
-        sb = new StringBuffer();
-        
-        while (smallBgMatcher.find()) {
-            String baseUrl = smallBgMatcher.group(1);
-            String params = smallBgMatcher.group(2);
-            String originalUrl = baseUrl + params;
-            
-            // 查找对应的本地图片
-            String localUrl = findLocalImageUrl(baseUrl, imageUrlMappings, "480");
-            if (localUrl != null) {
-                smallBgMatcher.appendReplacement(sb, "background-image: url(\"" + localUrl + "\")");
-                LogUtils.log("替换小图背景URL: %s -> %s", originalUrl, localUrl);
-            } else {
-                // 如果没有本地图片，保持原样
-                smallBgMatcher.appendReplacement(sb, smallBgMatcher.group(0));
-            }
-        }
-        smallBgMatcher.appendTail(sb);
         content = sb.toString();
         
         // 替换img标签的src属性
@@ -504,7 +352,6 @@ public class ImageDownloader {
             String params = imgMatcher.group(2);
             String originalUrl = baseUrl + params;
             
-            // 根据参数确定分辨率
             String resolution = "480";
             if (params.contains("w=1920")) {
                 resolution = "1920";
@@ -517,7 +364,6 @@ public class ImageDownloader {
                 imgMatcher.appendReplacement(sb, "src=\"" + localUrl + "\"");
                 LogUtils.log("替换img标签URL: %s -> %s", originalUrl, localUrl);
             } else {
-                // 如果没有本地图片，保持原样
                 imgMatcher.appendReplacement(sb, imgMatcher.group(0));
             }
         }
@@ -534,7 +380,6 @@ public class ImageDownloader {
             String params = linkMatcher.group(2);
             String originalUrl = baseUrl + params;
             
-            // 根据参数确定分辨率
             String resolution = "UHD";
             if (params.contains("w=1920")) {
                 resolution = "1920";
@@ -547,7 +392,6 @@ public class ImageDownloader {
                 linkMatcher.appendReplacement(sb, "href=\"" + localUrl + "\"");
                 LogUtils.log("替换下载链接URL: %s -> %s", originalUrl, localUrl);
             } else {
-                // 如果没有本地图片，保持原样
                 linkMatcher.appendReplacement(sb, linkMatcher.group(0));
             }
         }
@@ -671,257 +515,4 @@ public class ImageDownloader {
         return files;
     }
     
-    /**
-     * 获取本地图片URL
-     * 
-     * @param originalUrl 原始URL
-     * @param date 图片日期
-     * @param resolution 分辨率
-     * @return 本地图片URL
-     */
-    private static String getLocalImageUrl(String originalUrl, String date, String resolution) {
-        try {
-            String imgName = extractImageName(originalUrl);
-            if (imgName == null || imgName.isEmpty()) {
-                return originalUrl; // 如果无法提取名称，返回原始URL
-            }
-            
-            String yearMonth = date.substring(0, 7);
-            return "/local_img/" + yearMonth + "/" + imgName + "_" + resolution + ".jpg";
-        } catch (Exception e) {
-            LogUtils.log("获取本地图片URL时出错: %s, 错误: %s", originalUrl, e.getMessage());
-            return originalUrl;
-        }
-    }
-    
-    /**
-     * 更新归档页面，使用本地图片
-     * 
-     * @param archiveFile 归档页面文件路径
-     * @throws IOException 如果处理过程中出错
-     */
-    private static void updateArchivePageWithLocalImages(Path archiveFile) throws IOException {
-        // 这个方法现在不需要了，因为我们有了generateArchivePage方法
-        LogUtils.log("归档页面将通过generateArchivePage方法生成");
-    }
-    
-    /**
-     * 替换单个HTML文件中的图片链接
-     * 
-     * @param htmlFile HTML文件路径
-     * @throws IOException 如果处理过程中出错
-     */
-    private static void replaceImageUrlsInFile(Path htmlFile) throws IOException {
-        LogUtils.log("处理HTML文件: %s", htmlFile);
-        
-        String content = new String(Files.readAllBytes(htmlFile), StandardCharsets.UTF_8);
-        boolean modified = false;
-        
-        // 替换背景图片URL
-        // 匹配 background-image: url("https://cn.bing.com/th?id=xxx") 格式的URL
-        Pattern bgPattern = Pattern.compile("background-image:\\s*url\\([\"']?(https://cn\\.bing\\.com/th\\?id=[^\"'\\)]+)[\"']?\\)");
-        Matcher bgMatcher = bgPattern.matcher(content);
-        StringBuffer sb = new StringBuffer();
-        
-        while (bgMatcher.find()) {
-            String originalUrl = bgMatcher.group(1);
-            String localUrl = getLocalImageUrl(originalUrl, htmlFile);
-            
-            if (localUrl != null) {
-                // 替换为本地URL
-                bgMatcher.appendReplacement(sb, "background-image: url(\"" + localUrl + "\")");
-                modified = true;
-                LogUtils.log("替换背景图片URL: %s -> %s", originalUrl, localUrl);
-            }
-        }
-        bgMatcher.appendTail(sb);
-        content = sb.toString();
-        
-        // 替换图片链接URL
-        // 匹配 href="https://cn.bing.com/th?id=xxx" 格式的URL
-        Pattern linkPattern = Pattern.compile("href=[\"'](https://cn\\.bing\\.com/th\\?id=[^\"']+)[\"']");
-        Matcher linkMatcher = linkPattern.matcher(content);
-        sb = new StringBuffer();
-        
-        while (linkMatcher.find()) {
-            String originalUrl = linkMatcher.group(1);
-            String localUrl = getLocalImageUrl(originalUrl, htmlFile);
-            
-            if (localUrl != null) {
-                // 替换为本地URL
-                linkMatcher.appendReplacement(sb, "href=\"" + localUrl + "\"");
-                modified = true;
-                LogUtils.log("替换图片链接URL: %s -> %s", originalUrl, localUrl);
-            }
-        }
-        linkMatcher.appendTail(sb);
-        content = sb.toString();
-        
-        // 替换img标签的src属性
-        Pattern imgPattern = Pattern.compile("src=[\"'](https://cn\\.bing\\.com/th\\?id=[^\"']+)[\"']");
-        Matcher imgMatcher = imgPattern.matcher(content);
-        sb = new StringBuffer();
-        
-        while (imgMatcher.find()) {
-            String originalUrl = imgMatcher.group(1);
-            String localUrl = getLocalImageUrl(originalUrl, htmlFile);
-            
-            if (localUrl != null) {
-                // 替换为本地URL
-                imgMatcher.appendReplacement(sb, "src=\"" + localUrl + "\"");
-                modified = true;
-                LogUtils.log("替换img标签URL: %s -> %s", originalUrl, localUrl);
-            }
-        }
-        imgMatcher.appendTail(sb);
-        content = sb.toString();
-        
-        // 如果有修改，写回文件
-        if (modified) {
-            Files.write(htmlFile, content.getBytes(StandardCharsets.UTF_8));
-            LogUtils.log("已更新HTML文件: %s", htmlFile);
-        } else {
-            LogUtils.log("HTML文件无需更新: %s", htmlFile);
-        }
-    }
-    
-    /**
-     * 获取本地图片URL
-     * 
-     * @param originalUrl 原始URL
-     * @param date 图片日期
-     * @param resolution 分辨率
-     * @return 本地图片URL，如果找不到对应的本地图片则返回原始URL
-     */
-    private static String getLocalImageUrl(String originalUrl, String date, String resolution) {
-        try {
-            // 提取图片名称
-            String imgName = extractImageName(originalUrl);
-            if (imgName == null || imgName.isEmpty()) {
-                return originalUrl;
-            }
-            
-            // 构建本地图片路径
-            String yearMonth = date.substring(0, 7);
-            String fileName = imgName + "_" + resolution + ".jpg";
-            String localPath = "/local_img/" + yearMonth + "/" + fileName;
-            
-            // 检查本地图片是否存在
-            Path localImgPath = Paths.get("docs" + localPath);
-            if (Files.exists(localImgPath)) {
-                return localPath;
-            }
-            
-            // 如果指定分辨率的文件不存在，尝试查找其他分辨率的文件
-            Path monthDir = Paths.get("docs/local_img", yearMonth);
-            if (Files.exists(monthDir) && Files.isDirectory(monthDir)) {
-                try {
-                    return Files.list(monthDir)
-                        .filter(path -> path.toString().endsWith(".jpg"))
-                        .filter(path -> path.getFileName().toString().startsWith(imgName))
-                        .findFirst()
-                        .map(path -> "/local_img/" + yearMonth + "/" + path.getFileName().toString())
-                        .orElse(originalUrl);
-                } catch (Exception e) {
-                    LogUtils.log("扫描本地图片目录时出错: %s", e.getMessage());
-                }
-            }
-            
-            return originalUrl;
-        } catch (Exception e) {
-            LogUtils.log("获取本地图片URL时出错: %s, 错误: %s", originalUrl, e.getMessage());
-            return originalUrl;
-        }
-    }
-    
-    /**
-     * 获取本地图片URL（兼容旧方法）
-     * 
-     * @param originalUrl 原始URL
-     * @param htmlFile HTML文件路径
-     * @return 本地图片URL，如果找不到对应的本地图片则返回null
-     */
-    private static String getLocalImageUrl(String originalUrl, Path htmlFile) {
-        // 如果已经有缓存的映射，直接返回
-        if (imageUrlMap.containsKey(originalUrl)) {
-            return imageUrlMap.get(originalUrl);
-        }
-        
-        try {
-            // 提取图片名称
-            String imgName = extractImageName(originalUrl);
-            if (imgName == null || imgName.isEmpty()) {
-                return null;
-            }
-            
-            // 确定分辨率
-            String resolution = "UHD";
-            if (originalUrl.contains("w=480") || originalUrl.contains("w=384")) {
-                resolution = "480";
-            } else if (originalUrl.contains("w=1920") || originalUrl.contains("w=1000")) {
-                resolution = "1920";
-            }
-            
-            // 从HTML文件路径中提取日期信息
-            String date = extractDateFromHtmlPath(htmlFile);
-            if (date == null) {
-                return null;
-            }
-            
-            // 使用新的方法获取本地图片URL
-            String localUrl = getLocalImageUrl(originalUrl, date, resolution);
-            
-            // 如果返回的是原始URL，说明没有找到本地文件
-            if (localUrl.equals(originalUrl)) {
-                return null;
-            }
-            
-            // 缓存映射关系
-            imageUrlMap.put(originalUrl, localUrl);
-            
-            return localUrl;
-        } catch (Exception e) {
-            LogUtils.log("获取本地图片URL时出错: %s, 错误: %s", originalUrl, e.getMessage());
-            return null;
-        }
-    }
-    
-    /**
-     * 从HTML文件路径中提取日期信息
-     * 
-     * @param htmlFile HTML文件路径
-     * @return 日期字符串（YYYY-MM-DD格式），如果无法提取则返回null
-     */
-    private static String extractDateFromHtmlPath(Path htmlFile) {
-        try {
-            String pathStr = htmlFile.toString();
-            
-            // 尝试从路径中提取日期
-            // 例如：docs/day/202507/31.html -> 2025-07-31
-            Pattern datePattern = Pattern.compile("day/(\\d{4})(\\d{2})/(\\d{2})\\.html$");
-            Matcher dateMatcher = datePattern.matcher(pathStr);
-            
-            if (dateMatcher.find()) {
-                String year = dateMatcher.group(1);
-                String month = dateMatcher.group(2);
-                String day = dateMatcher.group(3);
-                return year + "-" + month + "-" + day;
-            }
-            
-            // 如果是首页或其他页面，尝试读取文件内容提取日期
-            String content = new String(Files.readAllBytes(htmlFile), StandardCharsets.UTF_8);
-            Pattern contentDatePattern = Pattern.compile("<h1 class=\"w3-xlarge\">(\\d{4}-\\d{2}-\\d{2})</h1>");
-            Matcher contentDateMatcher = contentDatePattern.matcher(content);
-            
-            if (contentDateMatcher.find()) {
-                return contentDateMatcher.group(1);
-            }
-            
-            // 如果无法提取日期，使用当前日期
-            return java.time.LocalDate.now().toString();
-        } catch (Exception e) {
-            LogUtils.log("从HTML文件路径提取日期时出错: %s, 错误: %s", htmlFile, e.getMessage());
-            return null;
-        }
-    }
 }
