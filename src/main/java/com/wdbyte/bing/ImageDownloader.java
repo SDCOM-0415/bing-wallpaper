@@ -286,6 +286,12 @@ public class ImageDownloader {
             "<a href=\"/archive.html\" class=\"w3-bar-item w3-button w3-hover-green w3-green\">本地归档</a>"
         );
         
+        // 同时修改首页链接，移除高亮
+        content = content.replace(
+            "<a href=\"/\" class=\"w3-bar-item w3-button w3-hover-green\">首页</a>",
+            "<a href=\"/\" class=\"w3-bar-item w3-button w3-hover-green\">首页</a>"
+        );
+        
         // 替换所有必应图片链接为本地图片链接
         content = replaceImageLinksWithLocal(content, imagesList);
         
@@ -322,16 +328,22 @@ public class ImageDownloader {
         }
         
         // 替换背景图片URL
-        Pattern bgPattern = Pattern.compile("background-image:\\s*url\\([\"']?(https://cn\\.bing\\.com/th\\?id=[^\"'\\)&]+)([^\"'\\)]*)[\"']?\\)");
+        Pattern bgPattern = Pattern.compile("background-image:\\s*url\\([\"']?(https://cn\\.bing\\.com/th\\?id=[^\"'\\)]+)[\"']?\\)");
         Matcher bgMatcher = bgPattern.matcher(content);
         StringBuffer sb = new StringBuffer();
         
         while (bgMatcher.find()) {
-            String baseUrl = bgMatcher.group(1);
-            String params = bgMatcher.group(2);
-            String originalUrl = baseUrl + params;
+            String originalUrl = bgMatcher.group(1);
             
-            String localUrl = findLocalImageUrl(baseUrl, imageUrlMappings, "1920");
+            // 确定分辨率
+            String resolution = "1920";
+            if (originalUrl.contains("w=2000")) {
+                resolution = "1920"; // 大图使用1920分辨率
+            } else if (originalUrl.contains("w=480")) {
+                resolution = "480";
+            }
+            
+            String localUrl = findLocalImageUrl(originalUrl, imageUrlMappings, resolution);
             if (localUrl != null) {
                 bgMatcher.appendReplacement(sb, "background-image: url(\"" + localUrl + "\")");
                 LogUtils.log("替换背景图片URL: %s -> %s", originalUrl, localUrl);
@@ -343,23 +355,21 @@ public class ImageDownloader {
         content = sb.toString();
         
         // 替换img标签的src属性
-        Pattern imgPattern = Pattern.compile("src=[\"'](https://cn\\.bing\\.com/th\\?id=[^\"'&]+)([^\"']*)[\"']");
+        Pattern imgPattern = Pattern.compile("src=[\"'](https://cn\\.bing\\.com/th\\?id=[^\"']+)[\"']");
         Matcher imgMatcher = imgPattern.matcher(content);
         sb = new StringBuffer();
         
         while (imgMatcher.find()) {
-            String baseUrl = imgMatcher.group(1);
-            String params = imgMatcher.group(2);
-            String originalUrl = baseUrl + params;
+            String originalUrl = imgMatcher.group(1);
             
             String resolution = "480";
-            if (params.contains("w=1920")) {
+            if (originalUrl.contains("w=1920")) {
                 resolution = "1920";
-            } else if (!params.contains("w=")) {
+            } else if (!originalUrl.contains("w=")) {
                 resolution = "UHD";
             }
             
-            String localUrl = findLocalImageUrl(baseUrl, imageUrlMappings, resolution);
+            String localUrl = findLocalImageUrl(originalUrl, imageUrlMappings, resolution);
             if (localUrl != null) {
                 imgMatcher.appendReplacement(sb, "src=\"" + localUrl + "\"");
                 LogUtils.log("替换img标签URL: %s -> %s", originalUrl, localUrl);
@@ -371,23 +381,21 @@ public class ImageDownloader {
         content = sb.toString();
         
         // 替换下载链接
-        Pattern linkPattern = Pattern.compile("href=[\"'](https://cn\\.bing\\.com/th\\?id=[^\"'&]+)([^\"']*)[\"']");
+        Pattern linkPattern = Pattern.compile("href=[\"'](https://cn\\.bing\\.com/th\\?id=[^\"']+)[\"']");
         Matcher linkMatcher = linkPattern.matcher(content);
         sb = new StringBuffer();
         
         while (linkMatcher.find()) {
-            String baseUrl = linkMatcher.group(1);
-            String params = linkMatcher.group(2);
-            String originalUrl = baseUrl + params;
+            String originalUrl = linkMatcher.group(1);
             
             String resolution = "UHD";
-            if (params.contains("w=1920")) {
+            if (originalUrl.contains("w=1920")) {
                 resolution = "1920";
-            } else if (params.contains("w=480")) {
+            } else if (originalUrl.contains("w=480")) {
                 resolution = "480";
             }
             
-            String localUrl = findLocalImageUrl(baseUrl, imageUrlMappings, resolution);
+            String localUrl = findLocalImageUrl(originalUrl, imageUrlMappings, resolution);
             if (localUrl != null) {
                 linkMatcher.appendReplacement(sb, "href=\"" + localUrl + "\"");
                 LogUtils.log("替换下载链接URL: %s -> %s", originalUrl, localUrl);
@@ -410,10 +418,19 @@ public class ImageDownloader {
      * @return 本地图片URL，如果找不到则返回null
      */
     private static String findLocalImageUrl(String baseUrl, Map<String, Map<String, String>> imageUrlMappings, String preferredResolution) {
-        // 遍历所有图片映射，查找匹配的基础URL
+        // 从baseUrl中提取图片名称
+        String targetImageName = extractImageName(baseUrl);
+        if (targetImageName == null || targetImageName.isEmpty()) {
+            return null;
+        }
+        
+        // 遍历所有图片映射，查找匹配的图片名称
         for (Map.Entry<String, Map<String, String>> entry : imageUrlMappings.entrySet()) {
             String originalUrl = entry.getKey();
-            if (originalUrl.startsWith(baseUrl)) {
+            String originalImageName = extractImageName(originalUrl);
+            
+            // 比较图片名称是否匹配
+            if (targetImageName.equals(originalImageName)) {
                 Map<String, String> files = entry.getValue();
                 
                 // 首先尝试获取首选分辨率
