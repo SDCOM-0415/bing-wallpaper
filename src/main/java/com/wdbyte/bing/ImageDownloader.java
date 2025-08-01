@@ -310,8 +310,11 @@ public class ImageDownloader {
      */
     private static String replaceImageLinksWithLocal(String content, List<Images> imagesList) {
         if (imagesList == null || imagesList.isEmpty()) {
+            LogUtils.log("图片列表为空，无法替换图片链接");
             return content;
         }
+        
+        LogUtils.log("开始替换图片链接，图片列表大小: %d", imagesList.size());
         
         // 为每个图片创建URL映射
         Map<String, Map<String, String>> imageUrlMappings = new HashMap<>();
@@ -321,11 +324,17 @@ public class ImageDownloader {
                 continue;
             }
             
+            LogUtils.log("处理图片: %s, 日期: %s", image.getUrl(), image.getDate());
             Map<String, String> actualFiles = getActualDownloadedFiles(image);
             if (!actualFiles.isEmpty()) {
                 imageUrlMappings.put(image.getUrl(), actualFiles);
+                LogUtils.log("添加图片映射: %s -> %s", image.getUrl(), actualFiles);
+            } else {
+                LogUtils.log("未找到本地文件: %s", image.getUrl());
             }
         }
+        
+        LogUtils.log("创建了 %d 个图片URL映射", imageUrlMappings.size());
         
         // 替换背景图片URL
         Pattern bgPattern = Pattern.compile("background-image:\\s*url\\([\"']?(https://cn\\.bing\\.com/th\\?id=[^\"'\\)]+)[\"']?\\)");
@@ -412,53 +421,82 @@ public class ImageDownloader {
     /**
      * 查找对应的本地图片URL
      * 
-     * @param baseUrl 基础URL
+     * @param originalUrl 原始URL
      * @param imageUrlMappings 图片URL映射
      * @param preferredResolution 首选分辨率
      * @return 本地图片URL，如果找不到则返回null
      */
-    private static String findLocalImageUrl(String baseUrl, Map<String, Map<String, String>> imageUrlMappings, String preferredResolution) {
-        // 从baseUrl中提取图片名称
-        String targetImageName = extractImageName(baseUrl);
+    private static String findLocalImageUrl(String originalUrl, Map<String, Map<String, String>> imageUrlMappings, String preferredResolution) {
+        // 从originalUrl中提取图片名称
+        String targetImageName = extractImageName(originalUrl);
         if (targetImageName == null || targetImageName.isEmpty()) {
+            LogUtils.log("无法从URL提取图片名称: %s", originalUrl);
             return null;
         }
         
+        LogUtils.log("查找本地图片: %s, 分辨率: %s", targetImageName, preferredResolution);
+        
         // 遍历所有图片映射，查找匹配的图片名称
         for (Map.Entry<String, Map<String, String>> entry : imageUrlMappings.entrySet()) {
-            String originalUrl = entry.getKey();
-            String originalImageName = extractImageName(originalUrl);
+            String mappingUrl = entry.getKey();
+            String mappingImageName = extractImageName(mappingUrl);
+            
+            LogUtils.log("比较图片名称: %s vs %s", targetImageName, mappingImageName);
             
             // 比较图片名称是否匹配
-            if (targetImageName.equals(originalImageName)) {
+            if (targetImageName.equals(mappingImageName)) {
                 Map<String, String> files = entry.getValue();
+                LogUtils.log("找到匹配的图片，可用文件: %s", files.keySet());
                 
                 // 首先尝试获取首选分辨率
                 String localUrl = files.get(preferredResolution);
                 if (localUrl != null) {
+                    LogUtils.log("使用首选分辨率 %s: %s", preferredResolution, localUrl);
                     return localUrl;
                 }
                 
                 // 如果首选分辨率不存在，按优先级返回其他分辨率
                 if ("UHD".equals(preferredResolution)) {
                     localUrl = files.get("1920");
-                    if (localUrl != null) return localUrl;
+                    if (localUrl != null) {
+                        LogUtils.log("回退到1920分辨率: %s", localUrl);
+                        return localUrl;
+                    }
                     localUrl = files.get("480");
-                    if (localUrl != null) return localUrl;
+                    if (localUrl != null) {
+                        LogUtils.log("回退到480分辨率: %s", localUrl);
+                        return localUrl;
+                    }
                 } else if ("1920".equals(preferredResolution)) {
                     localUrl = files.get("UHD");
-                    if (localUrl != null) return localUrl;
+                    if (localUrl != null) {
+                        LogUtils.log("回退到UHD分辨率: %s", localUrl);
+                        return localUrl;
+                    }
                     localUrl = files.get("480");
-                    if (localUrl != null) return localUrl;
+                    if (localUrl != null) {
+                        LogUtils.log("回退到480分辨率: %s", localUrl);
+                        return localUrl;
+                    }
                 } else if ("480".equals(preferredResolution)) {
                     localUrl = files.get("1920");
-                    if (localUrl != null) return localUrl;
+                    if (localUrl != null) {
+                        LogUtils.log("回退到1920分辨率: %s", localUrl);
+                        return localUrl;
+                    }
                     localUrl = files.get("UHD");
-                    if (localUrl != null) return localUrl;
+                    if (localUrl != null) {
+                        LogUtils.log("回退到UHD分辨率: %s", localUrl);
+                        return localUrl;
+                    }
                 }
+                
+                LogUtils.log("没有找到任何可用的分辨率文件");
+                break;
             }
         }
         
+        LogUtils.log("未找到匹配的本地图片: %s", targetImageName);
         return null;
     }
     
