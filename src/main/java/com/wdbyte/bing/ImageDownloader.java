@@ -16,111 +16,141 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-/**
- * 图片下载工具类
- * 
- * @author SDCOM-0415
- * @date 2023/11/15
- */
-public class ImageDownloader {
-
-    // 本地图片存储根目录
-    private static final String LOCAL_IMG_DIR = "docs/local_img";
-    
-    // 存储图片URL映射关系
-    private static Map<String, String> imageUrlMap = new HashMap<>();
-    
     /**
-     * 下载并保存图片到本地
+     * 替换HTML内容中的图片链接为本地图片链接
      * 
+     * @param content HTML内容
      * @param imagesList 图片列表
-     * @throws IOException 如果下载或保存过程中出错
+     * @return 替换后的HTML内容
      */
-    public static void downloadImages(List<Images> imagesList) throws IOException {
+    private static String replaceImageLinksWithLocal(String content, List<Images> imagesList) {
         if (imagesList == null || imagesList.isEmpty()) {
-            LogUtils.log("图片列表为空，无法下载图片");
-            return;
+            LogUtils.log("图片列表为空，无法替换图片链接");
+            return content;
         }
         
-        // 创建本地图片目录
-        Path localImgPath = Paths.get(LOCAL_IMG_DIR);
-        if (!Files.exists(localImgPath)) {
-            Files.createDirectories(localImgPath);
-        }
+        LogUtils.log("开始替换图片链接，图片列表大小: %d", imagesList.size());
         
-        LogUtils.log("开始下载图片到本地目录: %s", LOCAL_IMG_DIR);
-        
-        // 限制下载最近的10张图片
-        int count = 0;
-        int maxImages = 10;
-        
+        // 直接遍历所有必应图片URL并尝试替换
         for (Images image : imagesList) {
-            if (count >= maxImages) break;
             if (image == null || image.getUrl() == null || image.getDate() == null) {
-                LogUtils.log("跳过无效的图片数据");
                 continue;
             }
             
-            try {
-                downloadImage(image);
-                count++;
-            } catch (Exception e) {
-                LogUtils.log("下载图片失败: %s, 错误: %s", image.getUrl(), e.getMessage());
+            String originalUrl = image.getUrl();
+            String imgName = extractImageName(originalUrl);
+            String yearMonth = image.getDate().substring(0, 7);
+            
+            LogUtils.log("处理图片: %s, 名称: %s, 年月: %s", originalUrl, imgName, yearMonth);
+            
+            // 检查本地文件是否存在
+            Map<String, String> localFiles = getActualDownloadedFiles(image);
+            if (localFiles.isEmpty()) {
+                LogUtils.log("未找到本地文件: %s", imgName);
+                continue;
+            }
+            
+            LogUtils.log("找到本地文件: %s", localFiles);
+            
+            // 替换所有包含这个图片ID的URL
+            String imageId = extractImageId(originalUrl);
+            if (imageId != null) {
+                // 替换背景图片URL
+                content = replaceUrlInContent(content, imageId, localFiles, "background-image:\\s*url\\([\"']?([^\"'\\)]*" + Pattern.quote(imageId) + "[^\"'\\)]*)[\"']?\\)", "background-image: url(\"$LOCAL_URL$\")");
+                
+                // 替换img标签的src属性
+                content = replaceUrlInContent(content, imageId, localFiles, "src=[\"']([^\"']*" + Pattern.quote(imageId) + "[^\"']*)[\"']", "src=\"$LOCAL_URL$\"");
+                
+                // 替换下载链接的href属性
+                content = replaceUrlInContent(content, imageId, localFiles, "href=[\"']([^\"']*" + Pattern.quote(imageId) + "[^\"']*)[\"']", "href=\"$LOCAL_URL$\"");
             }
         }
         
-        LogUtils.log("图片下载完成，共下载 %d 张图片", count);
+        LogUtils.log("图片链接替换完成");
+        return content;
     }
     
     /**
-     * 下载单张图片的不同分辨率版本
-     * 
-     * @param image 图片信息
-     * @throws IOException 如果下载或保存过程中出错
+     * 从URL中提取图片ID
      */
-    private static void downloadImage(Images image) throws IOException {
-        String url = image.getUrl();
-        String date = image.getDate();
-        
-        if (url == null || url.isEmpty()) {
-            LogUtils.log("图片URL为空，无法下载");
-            return;
-        }
-        
-        if (date == null || date.isEmpty() || date.length() < 7) {
-            LogUtils.log("图片日期格式无效: %s，使用当前日期", date);
-            date = java.time.LocalDate.now().toString();
-        }
-        
-        try {
-            // 提取年月作为目录名
-            String yearMonth = date.substring(0, 7);
-            Path monthDir = Paths.get(LOCAL_IMG_DIR, yearMonth);
-            if (!Files.exists(monthDir)) {
-                Files.createDirectories(monthDir);
+    private static String extractImageId(String url) {
+        if (url.contains("id=")) {
+            int idStart = url.indexOf("id=") + 3;
+            int idEnd = url.indexOf("&", idStart);
+            if (idEnd == -1) {
+                idEnd = url.length();
             }
+            return url.substring(idStart, idEnd);
+        }
+        return null;
+    }
+    
+    /**
+     * 在内容中替换URL
+     */
+    private static String replaceUrlInContent(String content, String imageId, Map<String, String> localFiles, String regex, String replacement) {
+        Pattern pattern = Pattern.compile(regex);
+        Matcher matcher = pattern.matcher(content);
+        StringBuffer sb = new StringBuffer();
+        
+        while (matcher.find()) {
+            String originalUrl = matcher.group(1);
+            String localUrl = getLocalUrlByParams(originalUrl, localFiles);
             
-            // 提取图片名称
-            String imgName = extractImageName(url);
-            if (imgName == null || imgName.isEmpty()) {
-                LogUtils.log("无法从URL提取图片名称: %s", url);
-                imgName = "bing_" + date.replace("-", "");
-            }
-            
-            LogUtils.log("处理图片: %s, 提取的名称: %s", url, imgName);
-            
-            // 根据URL类型选择不同的下载参数
-            if (url.contains("cn.bing.com/th") && url.contains("id=")) {
-                // 必应壁纸URL格式
-                downloadImageWithResolution(url, monthDir, imgName, "480", "&pid=hp&w=480");
-                downloadImageWithResolution(url, monthDir, imgName, "1920", "&pid=hp&w=1920");
-                downloadImageWithResolution(url, monthDir, imgName, "UHD", "");
+            if (localUrl != null) {
+                String newReplacement = replacement.replace("$LOCAL_URL$", localUrl);
+                matcher.appendReplacement(sb, newReplacement);
+                LogUtils.log("替换URL: %s -> %s", originalUrl, localUrl);
             } else {
-                // 其他URL格式
-                downloadImageWithResolution(url, monthDir, imgName, "384x216", "&pid=hp&w=384&h=216&rs=1&c=4");
-                downloadImageWithResolution(url, monthDir, imgName, "1000", "&w=1000");
-                downloadImageWithResolution(url, monthDir, imgName, "4k", "");
+                matcher.appendReplacement(sb, matcher.group(0));
             }
+        }
+        matcher.appendTail(sb);
+        
+        return sb.toString();
+    }
+    
+    /**
+     * 根据URL参数获取对应的本地URL
+     */
+    private static String getLocalUrlByParams(String originalUrl, Map<String, String> localFiles) {
+        // 根据URL参数确定需要的分辨率
+        String resolution = "UHD"; // 默认使用UHD
+        
+        if (originalUrl.contains("w=480") || originalUrl.contains("w=50")) {
+            resolution = "480";
+        } else if (originalUrl.contains("w=1920") || originalUrl.contains("w=2000")) {
+            resolution = "1920";
+        } else if (originalUrl.contains("w=384")) {
+            resolution = "480"; // 384分辨率映射到480
+        }
+        
+        // 首先尝试获取指定分辨率
+        String localUrl = localFiles.get(resolution);
+        if (localUrl != null) {
+            return localUrl;
+        }
+        
+        // 如果指定分辨率不存在，按优先级回退
+        if ("UHD".equals(resolution)) {
+            localUrl = localFiles.get("1920");
+            if (localUrl != null) return localUrl;
+            localUrl = localFiles.get("480");
+            if (localUrl != null) return localUrl;
+        } else if ("1920".equals(resolution)) {
+            localUrl = localFiles.get("UHD");
+            if (localUrl != null) return localUrl;
+            localUrl = localFiles.get("480");
+            if (localUrl != null) return localUrl;
+        } else if ("480".equals(resolution)) {
+            localUrl = localFiles.get("1920");
+            if (localUrl != null) return localUrl;
+            localUrl = localFiles.get("UHD");
+            if (localUrl != null) return localUrl;
+        }
+        
+        return null;
+    }
             
             LogUtils.log("已下载图片 %s 的多种分辨率版本到 %s", imgName, monthDir);
         } catch (Exception e) {
